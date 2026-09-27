@@ -4,7 +4,7 @@
 
     <application
         android:allowBackup="true"
-        android:label="Option Buyer"
+        android:label="Option Buyer New"
         android:theme="@style/Theme.OptionBuyer">
         <activity
             android:name=".MainActivity"

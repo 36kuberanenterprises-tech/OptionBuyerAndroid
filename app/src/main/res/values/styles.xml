@@ -1,6 +1,14 @@
 <resources>
-    <style name="Theme.OptionBuyer" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Theme.OptionBuyer" parent="Theme.MaterialComponents.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:statusBarColor">#FFFFFF</item>
+        <item name="android:navigationBarColor">#FFFFFF</item>
+        <item name="android:windowBackground">#F7F9FC</item>
+        <item name="colorPrimary">#1956B4</item>
+        <item name="colorPrimaryVariant">#164A98</item>
+        <item name="colorSecondary">#1956B4</item>
+        <item name="colorAccent">#1956B4</item>
     </style>
 </resources>

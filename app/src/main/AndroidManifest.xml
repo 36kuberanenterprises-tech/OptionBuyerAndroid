@@ -7,7 +7,7 @@
         android:label="Option Buyer New"
         android:theme="@style/Theme.OptionBuyer">
         <activity
-            android:name=".MainActivity"
+            android:name="com.kuberan.optionbuyer.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

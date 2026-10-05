@@ -176,14 +176,22 @@ public class MainActivity extends Activity {
                 payload.put("photoBase64", photoBase64);
                 payload.put("declarationAccepted", true);
 
+                String requestId = UUID.randomUUID().toString();
+                payload.put("clientRequestId", requestId);
+
+                PdfGenerator.Result pdf = PdfGenerator.createAndSave(this, payload, requestId);
+                payload.put("pdfFileName", pdf.fileName);
+                payload.put("pdfBase64", pdf.base64);
+
                 RegistrationStore store = new RegistrationStore(this);
-                store.savePending(UUID.randomUUID().toString(), payload.toString());
+                store.savePending(requestId, payload.toString());
                 scheduleSync();
 
                 int pending = store.pendingCount();
-                status.setText("Saved on this phone. Pending sync: " + pending +
+                status.setText("Registration saved. PDF: " + pdf.savedLocation +
+                        ". Pending Google Drive sync: " + pending +
                         ". It will sync automatically when internet is available.");
-                Toast.makeText(this, "Registration saved.", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "Registration and PDF saved.", Toast.LENGTH_LONG).show();
             } catch (Exception ex) {
                 status.setText("Unable to save: " + ex.getMessage());
                 Toast.makeText(this, "Unable to save registration.", Toast.LENGTH_LONG).show();

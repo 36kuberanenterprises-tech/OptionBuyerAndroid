@@ -10,8 +10,8 @@ android {
         applicationId 'com.edii.eapregistration'
         minSdk 24
         targetSdk 35
-        versionCode 2
-        versionName '1.1-age-signature-fix'
+        versionCode 3
+        versionName '1.2-serial-form-update'
     }
 
     compileOptions {

@@ -300,6 +300,7 @@ public class MainActivity extends Activity {
                                     income, category, intention, sector, msdp, declaration
                             );
                             updateSerialPreview(projectLocation, totalSerialView, locationSerialView);
+                            scroll.post(() -> scroll.fullScroll(View.FOCUS_UP));
                         })
                         .show();
             } catch (Exception ex) {

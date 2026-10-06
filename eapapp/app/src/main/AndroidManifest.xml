@@ -6,7 +6,9 @@
 
     <application
         android:allowBackup="true"
-        android:label="EAP Registration"
+        android:label="HAL EAP Registration"
+        android:icon="@drawable/ic_edii_app"
+        android:roundIcon="@drawable/ic_edii_app"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="false">
 
@@ -14,6 +16,11 @@
             android:name=".MainActivity"
             android:windowSoftInputMode="adjustResize"
             android:resizeableActivity="true"
+            android:exported="false"/>
+
+        <activity
+            android:name=".SplashActivity"
+            android:screenOrientation="portrait"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>

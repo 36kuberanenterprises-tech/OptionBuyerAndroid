@@ -72,6 +72,7 @@ public class MainActivity extends Activity {
         addSyncSettings();
 
         eapDateField = addDateField("EAP Date *");
+        eapDateField.setText(sdf.format(Calendar.getInstance().getTime()));
         Spinner projectLocation = addSpinner("HAL Project Location *", new String[]{
                 "Select",
                 "Kolar | Mulbagal",
@@ -92,7 +93,10 @@ public class MainActivity extends Activity {
         dobField = addDateField("Date of Birth *");
         EditText guardianName = addTextField("Father's / Husband's / Mother's Name *", "");
         ageField = addTextField("Age on EAP Date", "");
-        ageField.setEnabled(false);
+        ageField.setFocusable(false);
+        ageField.setClickable(false);
+        ageField.setTextColor(0xFF000000);
+        addNote("Age is calculated automatically from Date of Birth and EAP Date.");
 
         addSection("Address");
         EditText village = addTextField("Village *", "");
@@ -515,24 +519,46 @@ public class MainActivity extends Activity {
 
     private void updateAge() {
         if (dobField == null || eapDateField == null || ageField == null) return;
+
         String dobText = value(dobField);
         String eventText = value(eapDateField);
-        if (dobText.isEmpty() || eventText.isEmpty()) return;
+
+        if (dobText.isEmpty() || eventText.isEmpty()) {
+            ageField.setText("");
+            return;
+        }
 
         try {
             Calendar dob = Calendar.getInstance();
+            dob.clear();
             dob.setTime(sdf.parse(dobText));
+
             Calendar event = Calendar.getInstance();
+            event.clear();
             event.setTime(sdf.parse(eventText));
 
+            if (event.before(dob)) {
+                ageField.setText("");
+                Toast.makeText(this, "EAP Date cannot be earlier than Date of Birth.", Toast.LENGTH_LONG).show();
+                return;
+            }
+
             int age = event.get(Calendar.YEAR) - dob.get(Calendar.YEAR);
-            boolean birthdayPassed =
-                    event.get(Calendar.MONTH) > dob.get(Calendar.MONTH) ||
-                    (event.get(Calendar.MONTH) == dob.get(Calendar.MONTH) &&
-                            event.get(Calendar.DAY_OF_MONTH) >= dob.get(Calendar.DAY_OF_MONTH));
-            if (!birthdayPassed) age--;
-            ageField.setText(age >= 0 ? String.valueOf(age) : "");
-        } catch (Exception ignored) {}
+
+            int eventMonth = event.get(Calendar.MONTH);
+            int dobMonth = dob.get(Calendar.MONTH);
+            int eventDay = event.get(Calendar.DAY_OF_MONTH);
+            int dobDay = dob.get(Calendar.DAY_OF_MONTH);
+
+            if (eventMonth < dobMonth || (eventMonth == dobMonth && eventDay < dobDay)) {
+                age--;
+            }
+
+            ageField.setText(String.valueOf(Math.max(age, 0)));
+        } catch (Exception ex) {
+            ageField.setText("");
+            Toast.makeText(this, "Unable to calculate age. Please reselect DOB and EAP Date.", Toast.LENGTH_LONG).show();
+        }
     }
 
     private String selectedRadio(RadioGroup group) {

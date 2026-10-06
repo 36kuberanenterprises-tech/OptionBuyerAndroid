@@ -231,8 +231,17 @@ public class PdfGenerator {
                 byte[] bytes = Base64.decode(b64, Base64.DEFAULT);
                 Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
                 if (bitmap != null) {
-                    RectF inset = new RectF(box.left + 3, box.top + 3, box.right - 3, box.bottom - 3);
-                    c.drawBitmap(bitmap, null, inset, new Paint(Paint.ANTI_ALIAS_FLAG));
+                    float availableW = box.width() - 8f;
+                    float availableH = box.height() - 8f;
+                    float scale = Math.min(availableW / bitmap.getWidth(), availableH / bitmap.getHeight());
+
+                    float drawW = bitmap.getWidth() * scale;
+                    float drawH = bitmap.getHeight() * scale;
+                    float left = box.left + (box.width() - drawW) / 2f;
+                    float top = box.top + (box.height() - drawH) / 2f;
+
+                    RectF destination = new RectF(left, top, left + drawW, top + drawH);
+                    c.drawBitmap(bitmap, null, destination, new Paint(Paint.ANTI_ALIAS_FLAG));
                     return;
                 }
             } catch (Exception ignored) {}

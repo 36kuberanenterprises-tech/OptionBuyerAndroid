@@ -116,7 +116,9 @@ function doPost(e) {
       signatureUrl,
       payload.totalSerialNumber || '',
       payload.individualSerialNumber || '',
-      payload.locationCode || ''
+      payload.locationCode || '',
+      payload.totalApplicationCount || '',
+      payload.locationApplicationCount || ''
     ]);
 
     SpreadsheetApp.flush();
@@ -170,10 +172,12 @@ function addHeaders(sheet) {
     'Signature URL',
     'Total Serial Number',
     'Individual Serial Number',
-    'Location Code'
+    'Location Code',
+    'Total Application Count',
+    'Location Application Count'
   ]);
   sheet.setFrozenRows(1);
-  sheet.getRange(1, 1, 1, 36).setFontWeight('bold');
+  sheet.getRange(1, 1, 1, 38).setFontWeight('bold');
 }
 
 function ensureExtendedHeaders(sheet) {
@@ -185,10 +189,12 @@ function ensureExtendedHeaders(sheet) {
     'Signature URL',
     'Total Serial Number',
     'Individual Serial Number',
-    'Location Code'
+    'Location Code',
+    'Total Application Count',
+    'Location Application Count'
   ];
   const currentLastColumn = sheet.getLastColumn();
-  if (currentLastColumn < 36) {
+  if (currentLastColumn < 38) {
     sheet.getRange(1, 29, 1, headers.length).setValues([headers]).setFontWeight('bold');
   }
 }

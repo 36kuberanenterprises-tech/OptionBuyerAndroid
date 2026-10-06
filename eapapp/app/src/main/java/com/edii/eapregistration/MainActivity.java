@@ -10,8 +10,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.text.InputFilter;
 import android.text.InputType;
 import android.util.Base64;
 import android.view.Gravity;
@@ -32,6 +35,7 @@ import android.widget.Toast;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -42,6 +46,7 @@ import java.util.UUID;
 public class MainActivity extends Activity {
     private static final int PHOTO_REQUEST = 2001;
     private static final int SIGNATURE_PHOTO_REQUEST = 2002;
+    private static final int PHOTO_PICK_REQUEST = 2003;
     private static final int SYNC_JOB_ID = 31001;
 
     private LinearLayout container;
@@ -62,6 +67,7 @@ public class MainActivity extends Activity {
         sdf.setLenient(false);
 
         ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
         container = new LinearLayout(this);
         container.setOrientation(LinearLayout.VERTICAL);
         container.setPadding(dp(18), dp(14), dp(18), dp(36));
@@ -104,18 +110,6 @@ public class MainActivity extends Activity {
 
         updateSerialPreview(projectLocation, totalSerialView, locationSerialView);
 
-        projectLocation.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
-                updateSerialPreview(projectLocation, totalSerialView, locationSerialView);
-            }
-
-            @Override
-            public void onNothingSelected(android.widget.AdapterView<?> parent) {
-                updateSerialPreview(projectLocation, totalSerialView, locationSerialView);
-            }
-        });
-
         addPhotoSection();
 
         EditText name = addTextField("Name *", "");
@@ -132,8 +126,24 @@ public class MainActivity extends Activity {
         addSection("Address");
         EditText village = addTextField("Village *", "");
         EditText panchayat = addTextField("Panchayat *", "");
-        EditText block = addTextField("Block", "");
-        EditText city = addTextField("City / Taluk", "");
+        EditText city = addTextField("City / Taluk (Auto from HAL Project Location)", projectPlace(selectedSpinner(projectLocation)));
+        city.setFocusable(false);
+        city.setClickable(false);
+        city.setTextColor(0xFF000000);
+
+        projectLocation.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                updateSerialPreview(projectLocation, totalSerialView, locationSerialView);
+                city.setText("Select".equals(selectedSpinner(projectLocation)) ? "" : projectPlace(selectedSpinner(projectLocation)));
+            }
+
+            @Override
+            public void onNothingSelected(android.widget.AdapterView<?> parent) {
+                updateSerialPreview(projectLocation, totalSerialView, locationSerialView);
+            }
+        });
+
         EditText pinCode = addTextField("PIN Code *", "");
         pinCode.setInputType(InputType.TYPE_CLASS_NUMBER);
         EditText state = addTextField("State *", "Karnataka");
@@ -145,9 +155,10 @@ public class MainActivity extends Activity {
         EditText email = addTextField("Email ID", "");
         email.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
 
-        EditText idNumber = addTextField("Aadhaar No.", "");
+        EditText idNumber = addTextField("Aadhaar No. (12 digits)", "");
         idNumber.setInputType(InputType.TYPE_CLASS_NUMBER);
-        addNote("Collect Aadhaar details only as approved by the organisation and applicable data protection requirements.");
+        idNumber.setFilters(new InputFilter[]{new InputFilter.LengthFilter(12)});
+        addNote("Aadhaar number is restricted to exactly 12 digits when entered.");
 
         EditText education = addTextField("Highest Educational Qualification *", "");
         EditText occupation = addTextField("Occupation *", "");
@@ -201,6 +212,7 @@ public class MainActivity extends Activity {
 
             String mobileText = mobile.getText().toString().trim();
             String pinText = pinCode.getText().toString().trim();
+            String aadhaarText = value(idNumber);
 
             if (!pinText.matches("^[1-9][0-9]{5}$")) {
                 Toast.makeText(this, "Enter a valid 6 digit PIN code.", Toast.LENGTH_LONG).show();
@@ -209,6 +221,11 @@ public class MainActivity extends Activity {
 
             if (!mobileText.matches("^[6-9][0-9]{9}$")) {
                 Toast.makeText(this, "Enter a valid 10 digit mobile number.", Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            if (!aadhaarText.isEmpty() && !aadhaarText.matches("^[0-9]{12}$")) {
+                Toast.makeText(this, "Aadhaar number must contain exactly 12 digits.", Toast.LENGTH_LONG).show();
                 return;
             }
 
@@ -237,18 +254,18 @@ public class MainActivity extends Activity {
                 payload.put("ageOnEapDate", value(ageField));
                 payload.put("village", value(village));
                 payload.put("panchayat", value(panchayat));
-                payload.put("block", value(block));
-                payload.put("city", value(city));
+                payload.put("block", "");
+                payload.put("city", projectPlace(selectedProjectLocation));
                 payload.put("pinCode", pinText);
                 payload.put("state", value(state));
                 payload.put("projectLocation", selectedProjectLocation);
                 payload.put("place", projectPlace(selectedProjectLocation));
-                payload.put("fullAddress", buildFullAddress(value(village), value(panchayat), value(block), value(city), value(state), pinText));
+                payload.put("fullAddress", buildFullAddress(value(village), value(panchayat), selectedProjectLocation, value(state), pinText));
                 payload.put("mobile", mobileText);
                 payload.put("alternateMobile", value(alternateMobile));
                 payload.put("email", value(email));
                 payload.put("idType", "Aadhaar");
-                payload.put("idNumber", value(idNumber));
+                payload.put("idNumber", aadhaarText);
                 payload.put("education", value(education));
                 payload.put("occupation", value(occupation));
                 payload.put("individualIncome", value(income));
@@ -295,10 +312,11 @@ public class MainActivity extends Activity {
                         .setCancelable(false)
                         .setPositiveButton("NEXT APPLICANT", (dialog, which) -> {
                             clearForNextApplicant(
-                                    name, gender, guardianName, village, panchayat, block, city, pinCode,
+                                    name, gender, guardianName, village, panchayat, city, pinCode,
                                     state, mobile, alternateMobile, email, idNumber, education, occupation,
                                     income, category, intention, sector, msdp, declaration
                             );
+                            city.setText(projectPlace(selectedSpinner(projectLocation)));
                             updateSerialPreview(projectLocation, totalSerialView, locationSerialView);
                             scroll.post(() -> scroll.fullScroll(View.FOCUS_UP));
                         })
@@ -495,17 +513,25 @@ public class MainActivity extends Activity {
     }
 
     private void addPhotoSection() {
-        addSection("Photo");
+        addSection("Candidate Photo");
+        addNote("Choose either Take Live Photo or Upload Photo.");
+
         photoPreview = new ImageView(this);
         photoPreview.setBackgroundColor(0xFFECECEC);
         photoPreview.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        photoPreview.setAdjustViewBounds(true);
         container.addView(photoPreview, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(220)));
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(200)));
 
-        Button photo = new Button(this);
-        photo.setText("TAKE PHOTO");
-        container.addView(photo);
-        photo.setOnClickListener(v -> {
+        Button livePhoto = new Button(this);
+        livePhoto.setText("TAKE LIVE PHOTO");
+        container.addView(livePhoto);
+
+        Button uploadPhoto = new Button(this);
+        uploadPhoto.setText("UPLOAD PHOTO");
+        container.addView(uploadPhoto);
+
+        livePhoto.setOnClickListener(v -> {
             Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
             if (intent.resolveActivity(getPackageManager()) != null) {
                 startActivityForResult(intent, PHOTO_REQUEST);
@@ -513,29 +539,79 @@ public class MainActivity extends Activity {
                 Toast.makeText(this, "Camera is not available.", Toast.LENGTH_LONG).show();
             }
         });
+
+        uploadPhoto.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            intent.setType("image/*");
+            startActivityForResult(intent, PHOTO_PICK_REQUEST);
+        });
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (resultCode == RESULT_OK && data != null) {
-            Bundle extras = data.getExtras();
-            Object obj = extras == null ? null : extras.get("data");
-            if (obj instanceof Bitmap) {
-                Bitmap bitmap = (Bitmap) obj;
-                ByteArrayOutputStream out = new ByteArrayOutputStream();
+        if (resultCode != RESULT_OK) return;
 
-                if (requestCode == PHOTO_REQUEST) {
-                    photoPreview.setImageBitmap(bitmap);
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 75, out);
-                    photoBase64 = Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP);
-                } else if (requestCode == SIGNATURE_PHOTO_REQUEST) {
-                    signaturePhotoPreview.setImageBitmap(bitmap);
-                    signaturePhotoPreview.setVisibility(View.VISIBLE);
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 80, out);
-                    signaturePhotoBase64 = Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP);
+        if (requestCode == PHOTO_PICK_REQUEST && data != null && data.getData() != null) {
+            try {
+                Bitmap bitmap = loadBitmapFromUri(data.getData());
+                if (bitmap != null) {
+                    setCandidatePhoto(bitmap);
+                } else {
+                    Toast.makeText(this, "Unable to open selected photo.", Toast.LENGTH_LONG).show();
                 }
+            } catch (Exception ex) {
+                Toast.makeText(this, "Unable to load selected photo.", Toast.LENGTH_LONG).show();
             }
+            return;
+        }
+
+        if (data == null) return;
+
+        Bundle extras = data.getExtras();
+        Object obj = extras == null ? null : extras.get("data");
+        if (!(obj instanceof Bitmap)) return;
+
+        Bitmap bitmap = (Bitmap) obj;
+
+        if (requestCode == PHOTO_REQUEST) {
+            setCandidatePhoto(bitmap);
+        } else if (requestCode == SIGNATURE_PHOTO_REQUEST) {
+            signaturePhotoPreview.setImageBitmap(bitmap);
+            signaturePhotoPreview.setVisibility(View.VISIBLE);
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out);
+            signaturePhotoBase64 = Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP);
+        }
+    }
+
+    private void setCandidatePhoto(Bitmap bitmap) {
+        photoPreview.setImageBitmap(bitmap);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out);
+        photoBase64 = Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP);
+    }
+
+    private Bitmap loadBitmapFromUri(Uri uri) throws Exception {
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+
+        try (InputStream input = getContentResolver().openInputStream(uri)) {
+            BitmapFactory.decodeStream(input, null, bounds);
+        }
+
+        int sample = 1;
+        int maxDimension = Math.max(bounds.outWidth, bounds.outHeight);
+        while (maxDimension / sample > 1600) {
+            sample *= 2;
+        }
+
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inSampleSize = Math.max(1, sample);
+
+        try (InputStream input = getContentResolver().openInputStream(uri)) {
+            return BitmapFactory.decodeStream(input, null, options);
         }
     }
 
@@ -649,15 +725,30 @@ public class MainActivity extends Activity {
         return e.getText() == null ? "" : e.getText().toString().trim();
     }
 
-    private String buildFullAddress(String village, String panchayat, String block, String city, String state, String pinCode) {
+    private String buildFullAddress(String village, String panchayat, String projectLocation, String state, String pinCode) {
         List<String> parts = new ArrayList<>();
         if (!village.isEmpty()) parts.add(village);
         if (!panchayat.isEmpty()) parts.add(panchayat);
-        if (!block.isEmpty()) parts.add(block);
-        if (!city.isEmpty()) parts.add(city);
+
+        String projectAddress = projectAddressPart(projectLocation);
+        if (!projectAddress.isEmpty()) parts.add(projectAddress);
+
         if (!state.isEmpty()) parts.add(state);
         if (!pinCode.isEmpty()) parts.add("PIN " + pinCode);
         return join(parts);
+    }
+
+    private String projectAddressPart(String projectLocation) {
+        if (projectLocation == null || projectLocation.isEmpty() || "Select".equals(projectLocation)) return "";
+
+        int sep = projectLocation.indexOf("|");
+        if (sep < 0) return projectLocation.trim();
+
+        String district = projectLocation.substring(0, sep).trim();
+        String place = projectLocation.substring(sep + 1).trim();
+
+        if (district.equalsIgnoreCase(place)) return place;
+        return place + ", " + district;
     }
 
     private void clearForNextApplicant(
@@ -666,7 +757,6 @@ public class MainActivity extends Activity {
             EditText guardianName,
             EditText village,
             EditText panchayat,
-            EditText block,
             EditText city,
             EditText pinCode,
             EditText state,
@@ -693,7 +783,6 @@ public class MainActivity extends Activity {
 
         village.setText("");
         panchayat.setText("");
-        block.setText("");
         city.setText("");
         pinCode.setText("");
         state.setText("Karnataka");

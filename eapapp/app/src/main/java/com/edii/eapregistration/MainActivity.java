@@ -85,7 +85,30 @@ public class MainActivity extends Activity {
                 "Bengaluru South | Ramanagara",
                 "Bengaluru South | Channapatna"
         });
-        addNote("Serial numbers are generated automatically on Submit. Total: EAP/2026/N. Location serial: EAP/2026/Location Code/N.");
+        TextView totalSerialView = new TextView(this);
+        totalSerialView.setTextSize(16);
+        totalSerialView.setPadding(0, dp(10), 0, dp(4));
+        container.addView(totalSerialView);
+
+        TextView locationSerialView = new TextView(this);
+        locationSerialView.setTextSize(16);
+        locationSerialView.setPadding(0, dp(2), 0, dp(10));
+        container.addView(locationSerialView);
+
+        updateSerialPreview(projectLocation, totalSerialView, locationSerialView);
+
+        projectLocation.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                updateSerialPreview(projectLocation, totalSerialView, locationSerialView);
+            }
+
+            @Override
+            public void onNothingSelected(android.widget.AdapterView<?> parent) {
+                updateSerialPreview(projectLocation, totalSerialView, locationSerialView);
+            }
+        });
+
         addPhotoSection();
 
         EditText name = addTextField("Name *", "");
@@ -189,16 +212,18 @@ public class MainActivity extends Activity {
                 String selectedProjectLocation = selectedSpinner(projectLocation);
                 String locationCode = projectLocationCode(selectedProjectLocation);
 
-                SharedPreferences serialPrefs = getSharedPreferences("serial_counters", MODE_PRIVATE);
+                SharedPreferences serialPrefs = getSharedPreferences("serial_counters_2026_v2", MODE_PRIVATE);
                 int totalNumber = serialPrefs.getInt("total_2026", 0) + 1;
                 int individualNumber = serialPrefs.getInt("location_2026_" + locationCode, 0) + 1;
 
-                String totalSerialNumber = "EAP/2026/" + totalNumber;
-                String individualSerialNumber = "EAP/2026/" + locationCode + "/" + individualNumber;
+                String totalSerialNumber = "EAP/2026/" + formatSerialNumber(totalNumber);
+                String individualSerialNumber = "EAP/2026/" + locationCode + "/" + formatSerialNumber(individualNumber);
 
                 JSONObject payload = new JSONObject();
                 payload.put("totalSerialNumber", totalSerialNumber);
                 payload.put("individualSerialNumber", individualSerialNumber);
+                payload.put("totalApplicationCount", totalNumber);
+                payload.put("locationApplicationCount", individualNumber);
                 payload.put("locationCode", locationCode);
                 payload.put("eapDate", value(eapDateField));
                 payload.put("name", value(name));
@@ -258,10 +283,11 @@ public class MainActivity extends Activity {
                         .apply();
 
                 scheduleSync();
+                updateSerialPreview(projectLocation, totalSerialView, locationSerialView);
 
                 int pending = store.pendingCount();
-                status.setText("Saved. Total Serial: " + totalSerialNumber +
-                        " | Individual Serial: " + individualSerialNumber +
+                status.setText("Saved. Total Application Serial: " + totalSerialNumber +
+                        " | Location Serial: " + individualSerialNumber +
                         " | PDF: " + pdf.savedLocation +
                         " | Pending Google Drive sync: " + pending +
                         ". It will sync automatically when internet is available.");
@@ -633,6 +659,33 @@ public class MainActivity extends Activity {
         if (!state.isEmpty()) parts.add(state);
         if (!pinCode.isEmpty()) parts.add("PIN " + pinCode);
         return join(parts);
+    }
+
+    private void updateSerialPreview(Spinner projectLocation, TextView totalView, TextView locationView) {
+        SharedPreferences serialPrefs = getSharedPreferences("serial_counters_2026_v2", MODE_PRIVATE);
+
+        int totalSubmitted = serialPrefs.getInt("total_2026", 0);
+        int nextTotal = totalSubmitted + 1;
+
+        totalView.setText("Total Applications Submitted: " + totalSubmitted +
+                "    Next Serial: EAP/2026/" + formatSerialNumber(nextTotal));
+
+        String selectedLocation = selectedSpinner(projectLocation);
+        if (selectedLocation.isEmpty() || "Select".equals(selectedLocation)) {
+            locationView.setText("Location wise count: Select HAL Project Location");
+            return;
+        }
+
+        String code = projectLocationCode(selectedLocation);
+        int locationSubmitted = serialPrefs.getInt("location_2026_" + code, 0);
+        int nextLocation = locationSubmitted + 1;
+
+        locationView.setText("Location Applications Submitted: " + locationSubmitted +
+                "    Next Serial: EAP/2026/" + code + "/" + formatSerialNumber(nextLocation));
+    }
+
+    private String formatSerialNumber(int number) {
+        return String.format(Locale.ENGLISH, "%02d", number);
     }
 
     private String projectLocationCode(String projectLocation) {

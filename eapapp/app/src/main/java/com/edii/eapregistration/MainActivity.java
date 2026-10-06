@@ -74,6 +74,7 @@ public class MainActivity extends Activity {
         RadioGroup gender = addRadioGroup("Gender *", new String[]{"Male", "Female", "Other"});
 
         dobField = addDateField("Date of Birth *");
+        EditText guardianName = addTextField("Father's / Husband's / Mother's Name *", "");
         ageField = addTextField("Age on EAP Date", "");
         ageField.setEnabled(false);
 
@@ -91,9 +92,9 @@ public class MainActivity extends Activity {
         EditText email = addTextField("Email ID", "");
         email.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
 
-        Spinner idType = addSpinner("Government ID Type", new String[]{"Select", "Aadhaar", "Voter ID"});
-        EditText idNumber = addTextField("Government ID Number", "");
-        addNote("For live use, collect only the approved identification details. Avoid storing a full Aadhaar number unless specifically required by the organisation.");
+        EditText idNumber = addTextField("Aadhaar No.", "");
+        idNumber.setInputType(InputType.TYPE_CLASS_NUMBER);
+        addNote("Collect Aadhaar details only as approved by the organisation and applicable data protection requirements.");
 
         EditText education = addTextField("Highest Educational Qualification *", "");
         EditText occupation = addTextField("Occupation *", "");
@@ -101,7 +102,7 @@ public class MainActivity extends Activity {
         income.setInputType(InputType.TYPE_CLASS_NUMBER);
 
         Spinner category = addSpinner("Category *",
-                new String[]{"Select", "GEN", "EWS", "SC", "ST", "OBC", "Minority"});
+                new String[]{"Select", "SC", "ST", "OBC"});
 
         RadioGroup intention = addRadioGroup(
                 "Intention for taking part in EAP *",
@@ -133,7 +134,7 @@ public class MainActivity extends Activity {
             for (CheckBox cb : sectors) if (cb.isChecked()) selectedSectors.add(cb.getText().toString());
 
             if (blank(eapDateField) || blank(name) || selectedRadio(gender).isEmpty() ||
-                    blank(dobField) || blank(village) || blank(panchayat) ||
+                    blank(dobField) || blank(guardianName) || blank(village) || blank(panchayat) ||
                     "Select".equals(selectedSpinner(city)) || blank(state) || blank(mobile) ||
                     blank(education) || blank(occupation) ||
                     "Select".equals(selectedSpinner(category)) ||
@@ -155,16 +156,19 @@ public class MainActivity extends Activity {
                 payload.put("name", value(name));
                 payload.put("gender", selectedRadio(gender));
                 payload.put("dob", value(dobField));
+                payload.put("guardianName", value(guardianName));
                 payload.put("ageOnEapDate", value(ageField));
                 payload.put("village", value(village));
                 payload.put("panchayat", value(panchayat));
                 payload.put("block", value(block));
                 payload.put("city", selectedSpinner(city));
                 payload.put("state", value(state));
+                payload.put("place", selectedSpinner(city));
+                payload.put("fullAddress", buildFullAddress(value(village), value(panchayat), value(block), selectedSpinner(city), value(state)));
                 payload.put("mobile", mobileText);
                 payload.put("alternateMobile", value(alternateMobile));
                 payload.put("email", value(email));
-                payload.put("idType", selectedSpinner(idType));
+                payload.put("idType", "Aadhaar");
                 payload.put("idNumber", value(idNumber));
                 payload.put("education", value(education));
                 payload.put("occupation", value(occupation));
@@ -448,6 +452,16 @@ public class MainActivity extends Activity {
 
     private String value(EditText e) {
         return e.getText() == null ? "" : e.getText().toString().trim();
+    }
+
+    private String buildFullAddress(String village, String panchayat, String block, String city, String state) {
+        List<String> parts = new ArrayList<>();
+        if (!village.isEmpty()) parts.add(village);
+        if (!panchayat.isEmpty()) parts.add(panchayat);
+        if (!block.isEmpty()) parts.add(block);
+        if (!city.isEmpty() && !"Select".equals(city)) parts.add(city);
+        if (!state.isEmpty()) parts.add(state);
+        return join(parts);
     }
 
     private String join(List<String> values) {

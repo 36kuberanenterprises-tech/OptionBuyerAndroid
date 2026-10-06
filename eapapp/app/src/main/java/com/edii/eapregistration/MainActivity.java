@@ -154,11 +154,13 @@ public class MainActivity extends Activity {
         container.addView(status);
 
         submit.setOnClickListener(v -> {
+            updateAge();
+
             List<String> selectedSectors = new ArrayList<>();
             for (CheckBox cb : sectors) if (cb.isChecked()) selectedSectors.add(cb.getText().toString());
 
             if (blank(eapDateField) || blank(name) || selectedRadio(gender).isEmpty() ||
-                    blank(dobField) || blank(guardianName) || blank(village) || blank(panchayat) ||
+                    blank(dobField) || blank(ageField) || blank(guardianName) || blank(village) || blank(panchayat) ||
                     "Select".equals(selectedSpinner(projectLocation)) || blank(pinCode) ||
                     blank(state) || blank(mobile) ||
                     blank(education) || blank(occupation) ||
@@ -502,18 +504,37 @@ public class MainActivity extends Activity {
     }
 
     private void showDatePicker(EditText target) {
-        Calendar now = Calendar.getInstance();
+        Calendar initial = Calendar.getInstance();
+
+        if (target == dobField && !value(eapDateField).isEmpty()) {
+            try {
+                initial.setTime(sdf.parse(value(eapDateField)));
+            } catch (Exception ignored) {}
+        }
+
         DatePickerDialog dialog = new DatePickerDialog(
                 this,
                 (view, year, month, day) -> {
                     Calendar selected = Calendar.getInstance();
+                    selected.clear();
                     selected.set(year, month, day, 0, 0, 0);
                     target.setText(sdf.format(selected.getTime()));
                     updateAge();
                 },
-                now.get(Calendar.YEAR),
-                now.get(Calendar.MONTH),
-                now.get(Calendar.DAY_OF_MONTH));
+                initial.get(Calendar.YEAR),
+                initial.get(Calendar.MONTH),
+                initial.get(Calendar.DAY_OF_MONTH));
+
+        if (target == dobField) {
+            Calendar maxDob = Calendar.getInstance();
+            if (!value(eapDateField).isEmpty()) {
+                try {
+                    maxDob.setTime(sdf.parse(value(eapDateField)));
+                } catch (Exception ignored) {}
+            }
+            dialog.getDatePicker().setMaxDate(maxDob.getTimeInMillis());
+        }
+
         dialog.show();
     }
 
@@ -539,7 +560,7 @@ public class MainActivity extends Activity {
 
             if (event.before(dob)) {
                 ageField.setText("");
-                Toast.makeText(this, "EAP Date cannot be earlier than Date of Birth.", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "Date of Birth cannot be after the EAP Date. Please select the correct DOB.", Toast.LENGTH_LONG).show();
                 return;
             }
 

@@ -10,8 +10,8 @@ android {
         applicationId 'com.edii.eapregistration'
         minSdk 24
         targetSdk 35
-        versionCode 6
-        versionName '1.5-photo-signature-next-applicant'
+        versionCode 7
+        versionName '1.6-exact-pdf-template'
     }
 
     compileOptions {

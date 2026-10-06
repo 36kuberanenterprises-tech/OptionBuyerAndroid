@@ -1,6 +1,7 @@
 package com.edii.eapregistration;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.app.job.JobInfo;
 import android.app.job.JobScheduler;
@@ -48,7 +49,6 @@ public class MainActivity extends Activity {
     private EditText eapDateField;
     private EditText dobField;
     private EditText ageField;
-    private SignaturePadView signaturePad;
     private ImageView signaturePhotoPreview;
     private String photoBase64 = "";
     private String signaturePhotoBase64 = "";
@@ -161,8 +161,8 @@ public class MainActivity extends Activity {
                 "Intention for taking part in EAP *",
                 new String[]{"Employment", "Self Employment"});
 
-        List<CheckBox> sectors = addCheckGroup(
-                "Sector in which you would like to start business *",
+        RadioGroup sector = addRadioGroup(
+                "In which sector would you like to start business? *",
                 new String[]{"Fashion Technology", "Food Processing", "Jute Bag Manufacturing", "Beautician"});
 
         RadioGroup msdp = addRadioGroup(
@@ -187,9 +187,6 @@ public class MainActivity extends Activity {
         submit.setOnClickListener(v -> {
             updateAge();
 
-            List<String> selectedSectors = new ArrayList<>();
-            for (CheckBox cb : sectors) if (cb.isChecked()) selectedSectors.add(cb.getText().toString());
-
             if (blank(eapDateField) || blank(name) || selectedRadio(gender).isEmpty() ||
                     blank(dobField) || blank(ageField) || blank(guardianName) || blank(village) || blank(panchayat) ||
                     "Select".equals(selectedSpinner(projectLocation)) || blank(pinCode) ||
@@ -197,7 +194,7 @@ public class MainActivity extends Activity {
                     blank(education) || blank(occupation) ||
                     "Select".equals(selectedSpinner(category)) ||
                     selectedRadio(intention).isEmpty() || selectedRadio(msdp).isEmpty() ||
-                    selectedSectors.isEmpty() || !hasApplicantSignature() || !declaration.isChecked()) {
+                    selectedRadio(sector).isEmpty() || !hasApplicantSignature() || !declaration.isChecked()) {
                 Toast.makeText(this, "Please complete all mandatory fields and declaration.", Toast.LENGTH_LONG).show();
                 return;
             }
@@ -257,21 +254,13 @@ public class MainActivity extends Activity {
                 payload.put("individualIncome", value(income));
                 payload.put("category", selectedSpinner(category));
                 payload.put("intention", selectedRadio(intention));
-                payload.put("sectors", join(selectedSectors));
+                payload.put("sectors", selectedRadio(sector));
+                payload.put("sector", selectedRadio(sector));
                 payload.put("msdpInterest", selectedRadio(msdp));
                 payload.put("photoBase64", photoBase64);
 
-                String signatureType;
-                String signatureBase64;
-                if (signaturePad != null && signaturePad.hasSignature()) {
-                    signatureType = "Digital";
-                    signatureBase64 = signaturePad.toBase64();
-                } else {
-                    signatureType = "Photo";
-                    signatureBase64 = signaturePhotoBase64;
-                }
-                payload.put("signatureType", signatureType);
-                payload.put("signatureBase64", signatureBase64);
+                payload.put("signatureType", "Photo");
+                payload.put("signatureBase64", signaturePhotoBase64);
                 payload.put("declarationAccepted", true);
 
                 String requestId = UUID.randomUUID().toString();
@@ -298,7 +287,21 @@ public class MainActivity extends Activity {
                         " | PDF: " + pdf.savedLocation +
                         " | Pending Google Drive sync: " + pending +
                         ". It will sync automatically when internet is available.");
-                Toast.makeText(this, "Registration and PDF saved.", Toast.LENGTH_LONG).show();
+                String submittedApplicantName = value(name);
+
+                new AlertDialog.Builder(this)
+                        .setTitle("Application Submitted")
+                        .setMessage(submittedApplicantName + " application is submitted successfully.")
+                        .setCancelable(false)
+                        .setPositiveButton("NEXT APPLICANT", (dialog, which) -> {
+                            clearForNextApplicant(
+                                    name, gender, guardianName, village, panchayat, block, city, pinCode,
+                                    state, mobile, alternateMobile, email, idNumber, education, occupation,
+                                    income, category, intention, sector, msdp, declaration
+                            );
+                            updateSerialPreview(projectLocation, totalSerialView, locationSerialView);
+                        })
+                        .show();
             } catch (Exception ex) {
                 status.setText("Unable to save: " + ex.getMessage());
                 Toast.makeText(this, "Unable to save registration.", Toast.LENGTH_LONG).show();
@@ -463,39 +466,18 @@ public class MainActivity extends Activity {
     }
 
     private void addSignatureSection() {
-        addSection("Applicant Signature *");
-        addNote("Applicant can sign directly on the screen with a finger. If required, a photo of the signature can be captured instead.");
-
-        signaturePad = new SignaturePadView(this);
-        signaturePad.setBackgroundColor(0xFFFFFFFF);
-        container.addView(signaturePad, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(180)));
-
-        LinearLayout buttons = new LinearLayout(this);
-        buttons.setOrientation(LinearLayout.HORIZONTAL);
-
-        Button clear = new Button(this);
-        clear.setText("CLEAR SIGNATURE");
-        Button photo = new Button(this);
-        photo.setText("CAPTURE SIGNATURE PHOTO");
-
-        buttons.addView(clear, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-        buttons.addView(photo, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-        container.addView(buttons);
+        addSection("Applicant Signature Photo *");
+        addNote("Capture a clear photo of the applicant's signature. The signature photo will be placed automatically in the signature box of the PDF.");
 
         signaturePhotoPreview = new ImageView(this);
         signaturePhotoPreview.setBackgroundColor(0xFFECECEC);
-        signaturePhotoPreview.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        signaturePhotoPreview.setVisibility(View.GONE);
+        signaturePhotoPreview.setScaleType(ImageView.ScaleType.FIT_CENTER);
         container.addView(signaturePhotoPreview, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(120)));
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(150)));
 
-        clear.setOnClickListener(v -> {
-            signaturePad.clear();
-            signaturePhotoBase64 = "";
-            signaturePhotoPreview.setImageDrawable(null);
-            signaturePhotoPreview.setVisibility(View.GONE);
-        });
+        Button photo = new Button(this);
+        photo.setText("CAPTURE SIGNATURE PHOTO");
+        container.addView(photo);
 
         photo.setOnClickListener(v -> {
             Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
@@ -508,8 +490,7 @@ public class MainActivity extends Activity {
     }
 
     private boolean hasApplicantSignature() {
-        return (signaturePad != null && signaturePad.hasSignature()) ||
-                (signaturePhotoBase64 != null && !signaturePhotoBase64.isEmpty());
+        return signaturePhotoBase64 != null && !signaturePhotoBase64.isEmpty();
     }
 
     private void addPhotoSection() {
@@ -552,7 +533,6 @@ public class MainActivity extends Activity {
                     signaturePhotoPreview.setVisibility(View.VISIBLE);
                     bitmap.compress(Bitmap.CompressFormat.JPEG, 80, out);
                     signaturePhotoBase64 = Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP);
-                    if (signaturePad != null) signaturePad.clear();
                 }
             }
         }
@@ -677,6 +657,67 @@ public class MainActivity extends Activity {
         if (!state.isEmpty()) parts.add(state);
         if (!pinCode.isEmpty()) parts.add("PIN " + pinCode);
         return join(parts);
+    }
+
+    private void clearForNextApplicant(
+            EditText name,
+            RadioGroup gender,
+            EditText guardianName,
+            EditText village,
+            EditText panchayat,
+            EditText block,
+            EditText city,
+            EditText pinCode,
+            EditText state,
+            EditText mobile,
+            EditText alternateMobile,
+            EditText email,
+            EditText idNumber,
+            EditText education,
+            EditText occupation,
+            EditText income,
+            Spinner category,
+            RadioGroup intention,
+            RadioGroup sector,
+            RadioGroup msdp,
+            CheckBox declaration) {
+
+        name.setText("");
+        gender.clearCheck();
+
+        dobValue = null;
+        dobField.setText("");
+        ageField.setText("");
+        guardianName.setText("");
+
+        village.setText("");
+        panchayat.setText("");
+        block.setText("");
+        city.setText("");
+        pinCode.setText("");
+        state.setText("Karnataka");
+
+        mobile.setText("");
+        alternateMobile.setText("");
+        email.setText("");
+        idNumber.setText("");
+        education.setText("");
+        occupation.setText("");
+        income.setText("");
+
+        category.setSelection(0);
+        intention.clearCheck();
+        sector.clearCheck();
+        msdp.clearCheck();
+        declaration.setChecked(false);
+
+        photoBase64 = "";
+        photoPreview.setImageDrawable(null);
+
+        signaturePhotoBase64 = "";
+        signaturePhotoPreview.setImageDrawable(null);
+
+        Toast.makeText(this, "Ready for next applicant.", Toast.LENGTH_SHORT).show();
     }
 
     private void updateSerialPreview(Spinner projectLocation, TextView totalView, TextView locationView) {

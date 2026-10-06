@@ -191,7 +191,7 @@ public class PdfGenerator {
 
         RectF sign = new RectF(413, 747, 560, 790);
         c.drawRect(sign, line);
-        c.drawText("SIGNATURE", 460, 774, smallBold);
+        drawSignature(c, data.optString("signatureBase64", ""), sign, smallBold);
 
         document.finishPage(page);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -213,6 +213,21 @@ public class PdfGenerator {
             Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
             if (bitmap != null) c.drawBitmap(bitmap, null, rect, new Paint(Paint.ANTI_ALIAS_FLAG));
         } catch (Exception ignored) {}
+    }
+
+    private static void drawSignature(Canvas c, String b64, RectF box, Paint label) {
+        if (b64 != null && !b64.trim().isEmpty()) {
+            try {
+                byte[] bytes = Base64.decode(b64, Base64.DEFAULT);
+                Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                if (bitmap != null) {
+                    RectF inset = new RectF(box.left + 3, box.top + 3, box.right - 3, box.bottom - 3);
+                    c.drawBitmap(bitmap, null, inset, new Paint(Paint.ANTI_ALIAS_FLAG));
+                    return;
+                }
+            } catch (Exception ignored) {}
+        }
+        c.drawText("SIGNATURE", box.left + 46, box.top + 27, label);
     }
 
     private static void drawPhotoOrPlaceholder(Canvas c, String b64, Paint border, Paint label) {

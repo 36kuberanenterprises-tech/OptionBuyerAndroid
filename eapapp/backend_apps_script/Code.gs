@@ -113,7 +113,10 @@ function doPost(e) {
       payload.pinCode || '',
       payload.guardianName || '',
       payload.signatureType || '',
-      signatureUrl
+      signatureUrl,
+      payload.totalSerialNumber || '',
+      payload.individualSerialNumber || '',
+      payload.locationCode || ''
     ]);
 
     SpreadsheetApp.flush();
@@ -164,10 +167,13 @@ function addHeaders(sheet) {
     'PIN Code',
     'Father Husband Mother Name',
     'Signature Type',
-    'Signature URL'
+    'Signature URL',
+    'Total Serial Number',
+    'Individual Serial Number',
+    'Location Code'
   ]);
   sheet.setFrozenRows(1);
-  sheet.getRange(1, 1, 1, 33).setFontWeight('bold');
+  sheet.getRange(1, 1, 1, 36).setFontWeight('bold');
 }
 
 function ensureExtendedHeaders(sheet) {
@@ -176,10 +182,13 @@ function ensureExtendedHeaders(sheet) {
     'PIN Code',
     'Father Husband Mother Name',
     'Signature Type',
-    'Signature URL'
+    'Signature URL',
+    'Total Serial Number',
+    'Individual Serial Number',
+    'Location Code'
   ];
   const currentLastColumn = sheet.getLastColumn();
-  if (currentLastColumn < 33) {
+  if (currentLastColumn < 36) {
     sheet.getRange(1, 29, 1, headers.length).setValues([headers]).setFontWeight('bold');
   }
 }

@@ -85,6 +85,7 @@ public class MainActivity extends Activity {
                 "Bengaluru South | Ramanagara",
                 "Bengaluru South | Channapatna"
         });
+        addNote("Serial numbers are generated automatically on Submit. Total: EAP/2026/N. Location serial: EAP/2026/Location Code/N.");
         addPhotoSection();
 
         EditText name = addTextField("Name *", "");
@@ -124,7 +125,7 @@ public class MainActivity extends Activity {
         income.setInputType(InputType.TYPE_CLASS_NUMBER);
 
         Spinner category = addSpinner("Category *",
-                new String[]{"Select", "SC", "ST", "OBC"});
+                new String[]{"Select", "GEN", "EWS", "SC", "ST", "OBC", "MINORITY"});
 
         RadioGroup intention = addRadioGroup(
                 "Intention for taking part in EAP *",
@@ -185,7 +186,20 @@ public class MainActivity extends Activity {
             }
 
             try {
+                String selectedProjectLocation = selectedSpinner(projectLocation);
+                String locationCode = projectLocationCode(selectedProjectLocation);
+
+                SharedPreferences serialPrefs = getSharedPreferences("serial_counters", MODE_PRIVATE);
+                int totalNumber = serialPrefs.getInt("total_2026", 0) + 1;
+                int individualNumber = serialPrefs.getInt("location_2026_" + locationCode, 0) + 1;
+
+                String totalSerialNumber = "EAP/2026/" + totalNumber;
+                String individualSerialNumber = "EAP/2026/" + locationCode + "/" + individualNumber;
+
                 JSONObject payload = new JSONObject();
+                payload.put("totalSerialNumber", totalSerialNumber);
+                payload.put("individualSerialNumber", individualSerialNumber);
+                payload.put("locationCode", locationCode);
                 payload.put("eapDate", value(eapDateField));
                 payload.put("name", value(name));
                 payload.put("gender", selectedRadio(gender));
@@ -198,8 +212,8 @@ public class MainActivity extends Activity {
                 payload.put("city", value(city));
                 payload.put("pinCode", pinText);
                 payload.put("state", value(state));
-                payload.put("projectLocation", selectedSpinner(projectLocation));
-                payload.put("place", projectPlace(selectedSpinner(projectLocation)));
+                payload.put("projectLocation", selectedProjectLocation);
+                payload.put("place", projectPlace(selectedProjectLocation));
                 payload.put("fullAddress", buildFullAddress(value(village), value(panchayat), value(block), value(city), value(state), pinText));
                 payload.put("mobile", mobileText);
                 payload.put("alternateMobile", value(alternateMobile));
@@ -237,11 +251,19 @@ public class MainActivity extends Activity {
 
                 RegistrationStore store = new RegistrationStore(this);
                 store.savePending(requestId, payload.toString());
+
+                serialPrefs.edit()
+                        .putInt("total_2026", totalNumber)
+                        .putInt("location_2026_" + locationCode, individualNumber)
+                        .apply();
+
                 scheduleSync();
 
                 int pending = store.pendingCount();
-                status.setText("Registration saved. PDF: " + pdf.savedLocation +
-                        ". Pending Google Drive sync: " + pending +
+                status.setText("Saved. Total Serial: " + totalSerialNumber +
+                        " | Individual Serial: " + individualSerialNumber +
+                        " | PDF: " + pdf.savedLocation +
+                        " | Pending Google Drive sync: " + pending +
                         ". It will sync automatically when internet is available.");
                 Toast.makeText(this, "Registration and PDF saved.", Toast.LENGTH_LONG).show();
             } catch (Exception ex) {
@@ -611,6 +633,33 @@ public class MainActivity extends Activity {
         if (!state.isEmpty()) parts.add(state);
         if (!pinCode.isEmpty()) parts.add("PIN " + pinCode);
         return join(parts);
+    }
+
+    private String projectLocationCode(String projectLocation) {
+        if (projectLocation == null) return "NA";
+
+        switch (projectLocation) {
+            case "Kolar | Mulbagal":
+                return "K-M";
+            case "Kolar | Srinivaspur":
+                return "K-S";
+            case "Bengaluru Rural | Devanahalli":
+                return "BR-D";
+            case "Bengaluru Rural | Hoskote":
+                return "BR-H";
+            case "Tumkur | Tumkur":
+                return "T-T";
+            case "Tumkur | Gubbi":
+                return "T-G";
+            case "Tumkur | Sira":
+                return "T-S";
+            case "Bengaluru South | Ramanagara":
+                return "BS-R";
+            case "Bengaluru South | Channapatna":
+                return "BS-C";
+            default:
+                return "NA";
+        }
     }
 
     private String projectPlace(String projectLocation) {

@@ -126,9 +126,11 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         sdf.setLenient(false);
 
-        getWindow().setStatusBarColor(GREEN_DARK);
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
         getWindow().setNavigationBarColor(Color.WHITE);
-        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR |
+                View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
 
         buildAppShell();
         showHome();
@@ -142,6 +144,14 @@ public class MainActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(PAGE_BG);
+
+        root.setOnApplyWindowInsetsListener((v, insets) -> {
+            int top = insets.getSystemWindowInsetTop();
+            int bottom = insets.getSystemWindowInsetBottom();
+            v.setPadding(0, top, 0, bottom);
+            return insets.consumeSystemWindowInsets();
+        });
+        root.requestApplyInsets();
 
         root.addView(createHeader(), new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(62)));

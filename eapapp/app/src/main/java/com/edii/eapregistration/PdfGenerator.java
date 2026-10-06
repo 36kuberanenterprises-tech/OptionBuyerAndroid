@@ -110,7 +110,11 @@ public class PdfGenerator {
 
         label(c, regular, "3)", 89, 274);
         label(c, regular, "Date of Birth:", 143, 274);
-        drawFit(c, safe(data.optString("dob")), 232, 274, 230, value, 8f);
+        drawFit(c, safe(data.optString("dob")), 232, 274, 95, value, 8f);
+        label(c, regular, "Age:", 342, 274);
+        String ageText = safe(data.optString("ageOnEapDate"));
+        if (!ageText.isEmpty()) ageText = ageText + " Years";
+        drawFit(c, ageText, 372, 274, 100, value, 8f);
 
         label(c, regular, "4)", 89, 296);
         label(c, regular, "Father's/Husband's/Mother's Name:", 143, 296);

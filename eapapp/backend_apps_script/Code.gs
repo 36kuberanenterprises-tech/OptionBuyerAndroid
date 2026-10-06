@@ -9,6 +9,7 @@ function doPost(e) {
     const sheetId = props.getProperty('SHEET_ID');
     const pdfFolderId = props.getProperty('PDF_FOLDER_ID');
     const photoFolderId = props.getProperty('PHOTO_FOLDER_ID');
+    const signatureFolderId = props.getProperty('SIGNATURE_FOLDER_ID') || photoFolderId || pdfFolderId;
 
     if (!expectedToken || payload.token !== expectedToken) {
       return jsonResponse(false, 'Unauthorised request.');
@@ -27,6 +28,8 @@ function doPost(e) {
       addHeaders(sheet);
     } else if (sheet.getLastRow() === 0) {
       addHeaders(sheet);
+    } else {
+      ensureExtendedHeaders(sheet);
     }
 
     const requestId = String(payload.clientRequestId || '').trim();
@@ -45,6 +48,7 @@ function doPost(e) {
     const registrationId = createRegistrationId(sheet);
     let photoUrl = '';
     let pdfUrl = '';
+    let signatureUrl = '';
 
     if (payload.photoBase64 && photoFolderId) {
       photoUrl = saveBase64File(
@@ -62,6 +66,17 @@ function doPost(e) {
         pdfFolderId,
         pdfName,
         'application/pdf'
+      );
+    }
+
+    if (payload.signatureBase64 && signatureFolderId) {
+      const ext = String(payload.signatureType || '').toLowerCase() === 'photo' ? '.jpg' : '.png';
+      const mime = ext === '.jpg' ? 'image/jpeg' : 'image/png';
+      signatureUrl = saveBase64File(
+        payload.signatureBase64,
+        signatureFolderId,
+        registrationId + '_signature' + ext,
+        mime
       );
     }
 
@@ -93,7 +108,12 @@ function doPost(e) {
       payload.msdpInterest || '',
       pdfUrl,
       photoUrl,
-      payload.declarationAccepted === true ? 'Yes' : 'No'
+      payload.declarationAccepted === true ? 'Yes' : 'No',
+      payload.projectLocation || '',
+      payload.pinCode || '',
+      payload.guardianName || '',
+      payload.signatureType || '',
+      signatureUrl
     ]);
 
     SpreadsheetApp.flush();
@@ -101,7 +121,8 @@ function doPost(e) {
     return jsonResponse(true, 'Saved successfully.', {
       registrationId: registrationId,
       pdfUrl: pdfUrl,
-      photoUrl: photoUrl
+      photoUrl: photoUrl,
+      signatureUrl: signatureUrl
     });
 
   } catch (err) {
@@ -138,10 +159,29 @@ function addHeaders(sheet) {
     'MSDP Interest',
     'PDF URL',
     'Photo URL',
-    'Declaration Accepted'
+    'Declaration Accepted',
+    'HAL Project Location',
+    'PIN Code',
+    'Father Husband Mother Name',
+    'Signature Type',
+    'Signature URL'
   ]);
   sheet.setFrozenRows(1);
-  sheet.getRange(1, 1, 1, 28).setFontWeight('bold');
+  sheet.getRange(1, 1, 1, 33).setFontWeight('bold');
+}
+
+function ensureExtendedHeaders(sheet) {
+  const headers = [
+    'HAL Project Location',
+    'PIN Code',
+    'Father Husband Mother Name',
+    'Signature Type',
+    'Signature URL'
+  ];
+  const currentLastColumn = sheet.getLastColumn();
+  if (currentLastColumn < 33) {
+    sheet.getRange(1, 29, 1, headers.length).setValues([headers]).setFontWeight('bold');
+  }
 }
 
 function findExisting(sheet, requestId) {

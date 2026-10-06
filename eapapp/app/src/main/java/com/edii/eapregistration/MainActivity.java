@@ -1,6 +1,8 @@
 package com.edii.eapregistration;
 
 import android.app.Activity;
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
 import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.app.job.JobInfo;
@@ -21,8 +23,14 @@ import android.text.Editable;
 import android.text.InputFilter;
 import android.text.InputType;
 import android.text.TextWatcher;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.RelativeSizeSpan;
+import android.text.style.StyleSpan;
 import android.util.Base64;
 import android.view.Gravity;
+import android.view.HapticFeedbackConstants;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
@@ -117,6 +125,11 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         sdf.setLenient(false);
+
+        getWindow().setStatusBarColor(GREEN_DARK);
+        getWindow().setNavigationBarColor(Color.WHITE);
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+
         buildAppShell();
         showHome();
 
@@ -131,14 +144,14 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(PAGE_BG);
 
         root.addView(createHeader(), new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(70)));
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(62)));
 
         contentFrame = new FrameLayout(this);
         root.addView(contentFrame, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
 
         root.addView(createBottomNavigation(), new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(64)));
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(62)));
 
         setContentView(root);
     }
@@ -147,46 +160,63 @@ public class MainActivity extends Activity {
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(dp(16), dp(8), dp(16), dp(8));
+        header.setPadding(dp(14), dp(6), dp(12), dp(6));
         header.setBackground(gradient(GREEN_DARK, GREEN, 0));
+        header.setElevation(dp(4));
+
+        FrameLayout logoShell = new FrameLayout(this);
+        logoShell.setBackground(rounded(Color.WHITE, dp(24), 0, 0));
+        logoShell.setPadding(dp(3), dp(3), dp(3), dp(3));
 
         ImageView logo = new ImageView(this);
         logo.setImageResource(R.drawable.ic_edii_app);
         logo.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-        header.addView(logo, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        logoShell.addView(logo, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
+
+        header.addView(logoShell, new LinearLayout.LayoutParams(dp(42), dp(42)));
 
         LinearLayout titles = new LinearLayout(this);
         titles.setOrientation(LinearLayout.VERTICAL);
-        titles.setPadding(dp(10), 0, 0, 0);
+        titles.setGravity(Gravity.CENTER_VERTICAL);
+        titles.setPadding(dp(9), 0, 0, 0);
 
         TextView brand = new TextView(this);
         brand.setText("EDII");
         brand.setTextColor(Color.WHITE);
-        brand.setTextSize(18);
+        brand.setTextSize(15);
         brand.setTypeface(Typeface.DEFAULT_BOLD);
+        brand.setIncludeFontPadding(false);
 
         TextView title = new TextView(this);
         title.setText("HAL EAP Registration");
         title.setTextColor(Color.WHITE);
-        title.setTextSize(15);
+        title.setTextSize(13);
         title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setIncludeFontPadding(false);
 
         titles.addView(brand);
         titles.addView(title);
-        header.addView(titles, new LinearLayout.LayoutParams(0,
-                LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        header.addView(titles, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
         TextView syncBadge = new TextView(this);
-        syncBadge.setText("●");
+        syncBadge.setText("↻");
         syncBadge.setTextColor(Color.WHITE);
-        syncBadge.setTextSize(20);
+        syncBadge.setTextSize(23);
+        syncBadge.setTypeface(Typeface.DEFAULT_BOLD);
         syncBadge.setGravity(Gravity.CENTER);
-        syncBadge.setContentDescription("Sync status");
+        syncBadge.setContentDescription("Sync now");
+        syncBadge.setBackground(rounded(Color.argb(40, 255, 255, 255), dp(18), 0, 0));
         syncBadge.setOnClickListener(v -> {
             scheduleSync();
             Toast.makeText(this, "Sync queued.", Toast.LENGTH_SHORT).show();
         });
-        header.addView(syncBadge, new LinearLayout.LayoutParams(dp(44), dp(44)));
+
+        LinearLayout.LayoutParams syncLp = new LinearLayout.LayoutParams(dp(38), dp(38));
+        syncLp.setMargins(dp(6), 0, 0, 0);
+        header.addView(syncBadge, syncLp);
 
         return header;
     }
@@ -199,9 +229,9 @@ public class MainActivity extends Activity {
         nav.setBackgroundColor(Color.WHITE);
         nav.setElevation(dp(8));
 
-        navHome = navItem("Home");
-        navApplications = navItem("Applications");
-        navMore = navItem("More");
+        navHome = navItem("⌂\nHome");
+        navApplications = navItem("▤\nApplications");
+        navMore = navItem("•••\nMore");
 
         nav.addView(navHome, new LinearLayout.LayoutParams(0,
                 LinearLayout.LayoutParams.MATCH_PARENT, 1f));
@@ -221,9 +251,10 @@ public class MainActivity extends Activity {
         TextView t = new TextView(this);
         t.setText(text);
         t.setGravity(Gravity.CENTER);
-        t.setTextSize(13);
+        t.setTextSize(12);
+        t.setLineSpacing(0, 0.92f);
         t.setTypeface(Typeface.DEFAULT_BOLD);
-        t.setPadding(dp(4), dp(4), dp(4), dp(4));
+        t.setPadding(dp(4), dp(3), dp(4), dp(3));
         return t;
     }
 
@@ -232,8 +263,8 @@ public class MainActivity extends Activity {
         for (TextView item : items) {
             item.setTextColor(item == active ? GREEN_DARK : MUTED);
             item.setBackground(item == active
-                    ? rounded(GREEN_LIGHT, dp(14), 0, 0)
-                    : rounded(Color.TRANSPARENT, dp(14), 0, 0));
+                    ? rounded(GREEN_LIGHT, dp(16), 0, 0)
+                    : rounded(Color.TRANSPARENT, dp(16), 0, 0));
         }
     }
 
@@ -260,7 +291,7 @@ public class MainActivity extends Activity {
         TextView screenTitle = new TextView(this);
         screenTitle.setText("New EAP Registration");
         screenTitle.setTextColor(TEXT);
-        screenTitle.setTextSize(22);
+        screenTitle.setTextSize(21);
         screenTitle.setTypeface(Typeface.DEFAULT_BOLD);
         screenTitle.setPadding(dp(2), dp(2), 0, dp(10));
         homeContainer.addView(screenTitle);
@@ -465,9 +496,11 @@ public class MainActivity extends Activity {
         TextView card = new TextView(this);
         card.setTextColor(TEXT);
         card.setTextSize(14);
-        card.setLineSpacing(0, 1.08f);
-        card.setPadding(dp(14), dp(12), dp(14), dp(12));
-        card.setBackground(rounded(GREEN_LIGHT, dp(16), 1, Color.rgb(215, 237, 215)));
+        card.setLineSpacing(dp(2), 1.04f);
+        card.setPadding(dp(16), dp(14), dp(16), dp(14));
+        card.setMinHeight(dp(112));
+        card.setBackground(rounded(Color.WHITE, dp(16), 1, Color.rgb(211, 232, 211)));
+        card.setElevation(dp(1));
         return card;
     }
 
@@ -677,51 +710,100 @@ public class MainActivity extends Activity {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
         box.setGravity(Gravity.CENTER_HORIZONTAL);
-        box.setPadding(dp(24), dp(22), dp(24), dp(18));
-        box.setBackgroundColor(Color.WHITE);
+        box.setPadding(dp(24), dp(24), dp(24), dp(20));
+        box.setBackground(rounded(Color.WHITE, dp(22), 0, 0));
 
         TextView check = new TextView(this);
         check.setText("✓");
         check.setGravity(Gravity.CENTER);
-        check.setTextSize(38);
+        check.setTextSize(40);
+        check.setTypeface(Typeface.DEFAULT_BOLD);
         check.setTextColor(Color.WHITE);
-        check.setBackground(rounded(GREEN, dp(45), 0, 0));
-        box.addView(check, new LinearLayout.LayoutParams(dp(82), dp(82)));
+        check.setBackground(rounded(GREEN, dp(48), 0, 0));
+        check.setScaleX(0.72f);
+        check.setScaleY(0.72f);
+        check.setAlpha(0f);
+        box.addView(check, new LinearLayout.LayoutParams(dp(86), dp(86)));
 
         TextView name = new TextView(this);
         name.setText(applicantName);
         name.setTextColor(GREEN_DARK);
-        name.setTextSize(23);
+        name.setTextSize(24);
         name.setTypeface(Typeface.DEFAULT_BOLD);
         name.setGravity(Gravity.CENTER);
         name.setPadding(0, dp(14), 0, dp(4));
+        name.setAlpha(0f);
         box.addView(name);
 
         TextView message = new TextView(this);
-        message.setText("application is submitted successfully.");
+        message.setText("Application submitted successfully");
         message.setTextColor(TEXT);
         message.setTextSize(16);
+        message.setTypeface(Typeface.DEFAULT_BOLD);
         message.setGravity(Gravity.CENTER);
+        message.setAlpha(0f);
         box.addView(message);
 
-        TextView serials = new TextView(this);
-        serials.setText("Application Serial No.\n" + totalSerial +
-                "\n\nLocation Serial No.\n" + locationSerial);
-        serials.setTextColor(TEXT);
-        serials.setTextSize(15);
-        serials.setTypeface(Typeface.DEFAULT_BOLD);
-        serials.setPadding(dp(16), dp(14), dp(16), dp(14));
-        serials.setBackground(rounded(GREEN_LIGHT, dp(14), 0, 0));
+        TextView subMessage = new TextView(this);
+        subMessage.setText("The application has been saved and queued for sync.");
+        subMessage.setTextColor(MUTED);
+        subMessage.setTextSize(12);
+        subMessage.setGravity(Gravity.CENTER);
+        subMessage.setPadding(dp(6), dp(4), dp(6), 0);
+        subMessage.setAlpha(0f);
+        box.addView(subMessage);
+
+        LinearLayout serialCard = new LinearLayout(this);
+        serialCard.setOrientation(LinearLayout.VERTICAL);
+        serialCard.setPadding(dp(16), dp(14), dp(16), dp(14));
+        serialCard.setBackground(rounded(GREEN_LIGHT, dp(15), 1, Color.rgb(210, 235, 210)));
+        serialCard.setAlpha(0f);
+        serialCard.setTranslationY(dp(12));
+
+        TextView applicationLabel = new TextView(this);
+        applicationLabel.setText("Application Serial No.");
+        applicationLabel.setTextColor(MUTED);
+        applicationLabel.setTextSize(12);
+        serialCard.addView(applicationLabel);
+
+        TextView applicationSerial = new TextView(this);
+        applicationSerial.setText(totalSerial);
+        applicationSerial.setTextColor(TEXT);
+        applicationSerial.setTextSize(19);
+        applicationSerial.setTypeface(Typeface.DEFAULT_BOLD);
+        serialCard.addView(applicationSerial);
+
+        TextView locationLabel = new TextView(this);
+        locationLabel.setText("Location Serial No.");
+        locationLabel.setTextColor(MUTED);
+        locationLabel.setTextSize(12);
+        locationLabel.setPadding(0, dp(10), 0, 0);
+        serialCard.addView(locationLabel);
+
+        TextView locationSerialView = new TextView(this);
+        locationSerialView.setText(locationSerial);
+        locationSerialView.setTextColor(TEXT);
+        locationSerialView.setTextSize(19);
+        locationSerialView.setTypeface(Typeface.DEFAULT_BOLD);
+        serialCard.addView(locationSerialView);
+
         LinearLayout.LayoutParams serialLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
-        serialLp.setMargins(0, dp(18), 0, dp(14));
-        box.addView(serials, serialLp);
+        serialLp.setMargins(0, dp(18), 0, dp(16));
+        box.addView(serialCard, serialLp);
 
         Button next = makeButton("Next Applicant", true);
         box.addView(next, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        Button applications = makeButton("View Applications", false);
+        LinearLayout.LayoutParams appLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        appLp.setMargins(0, dp(8), 0, 0);
+        box.addView(applications, appLp);
 
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setView(box)
@@ -735,6 +817,58 @@ public class MainActivity extends Activity {
             submitButton.setText("Submit Application");
             updateSerialPreview();
             homeScroll.post(() -> homeScroll.fullScroll(View.FOCUS_UP));
+        });
+
+        applications.setOnClickListener(v -> {
+            dialog.dismiss();
+            submitButton.setEnabled(true);
+            submitButton.setText("Submit Application");
+            showApplications();
+        });
+
+        dialog.setOnShowListener(d -> {
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setBackgroundDrawable(
+                        rounded(Color.TRANSPARENT, dp(22), 0, 0));
+                int width = (int) (getResources().getDisplayMetrics().widthPixels * 0.92f);
+                dialog.getWindow().setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT);
+            }
+
+            check.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+
+            AnimatorSet tickSet = new AnimatorSet();
+            tickSet.playTogether(
+                    ObjectAnimator.ofFloat(check, View.SCALE_X, 0.72f, 1f),
+                    ObjectAnimator.ofFloat(check, View.SCALE_Y, 0.72f, 1f),
+                    ObjectAnimator.ofFloat(check, View.ALPHA, 0f, 1f)
+            );
+            tickSet.setDuration(320);
+
+            ObjectAnimator nameFade = ObjectAnimator.ofFloat(name, View.ALPHA, 0f, 1f);
+            nameFade.setDuration(260);
+            nameFade.setStartDelay(160);
+
+            ObjectAnimator messageFade = ObjectAnimator.ofFloat(message, View.ALPHA, 0f, 1f);
+            messageFade.setDuration(260);
+            messageFade.setStartDelay(220);
+
+            ObjectAnimator subFade = ObjectAnimator.ofFloat(subMessage, View.ALPHA, 0f, 1f);
+            subFade.setDuration(260);
+            subFade.setStartDelay(260);
+
+            AnimatorSet serialSet = new AnimatorSet();
+            serialSet.playTogether(
+                    ObjectAnimator.ofFloat(serialCard, View.ALPHA, 0f, 1f),
+                    ObjectAnimator.ofFloat(serialCard, View.TRANSLATION_Y, dp(12), 0f)
+            );
+            serialSet.setDuration(320);
+            serialSet.setStartDelay(300);
+
+            tickSet.start();
+            nameFade.start();
+            messageFade.start();
+            subFade.start();
+            serialSet.start();
         });
 
         dialog.show();
@@ -1392,20 +1526,31 @@ public class MainActivity extends Activity {
         int totalSubmitted = serialPrefs.getInt("total_2026", 0);
         int nextTotal = totalSubmitted + 1;
 
-        totalSerialView.setText(
-                "Total Applications Submitted\n" +
-                totalSubmitted +
-                "\nNext Serial  EAP/2026/" + formatSerialNumber(nextTotal));
+        setSummaryText(
+                totalSerialView,
+                "TOTAL APPLICATIONS",
+                String.valueOf(totalSubmitted),
+                "Next Serial",
+                "EAP/2026/" + formatSerialNumber(nextTotal));
 
         if (projectLocationSpinner == null) {
-            locationSerialView.setText("Location Applications Submitted\n0\nSelect location");
+            setSummaryText(
+                    locationSerialView,
+                    "LOCATION APPLICATIONS",
+                    "0",
+                    "Next Serial",
+                    "Select location");
             return;
         }
 
         String selected = selectedSpinner(projectLocationSpinner);
         if (selected.isEmpty() || "Select".equals(selected)) {
-            locationSerialView.setText(
-                    "Location Applications Submitted\n0\nSelect HAL Project Location");
+            setSummaryText(
+                    locationSerialView,
+                    "LOCATION APPLICATIONS",
+                    "0",
+                    "Next Serial",
+                    "Select HAL Project Location");
             return;
         }
 
@@ -1413,10 +1558,39 @@ public class MainActivity extends Activity {
         int submitted = serialPrefs.getInt("location_2026_" + code, 0);
         int next = submitted + 1;
 
-        locationSerialView.setText(
-                "Location Applications Submitted\n" +
-                submitted +
-                "\nNext Serial  EAP/2026/" + code + "/" + formatSerialNumber(next));
+        setSummaryText(
+                locationSerialView,
+                "LOCATION APPLICATIONS",
+                String.valueOf(submitted),
+                "Next Serial",
+                "EAP/2026/" + code + "/" + formatSerialNumber(next));
+    }
+
+    private void setSummaryText(TextView view, String heading, String count, String label, String serial) {
+        String text = heading + "\n" + count + "\n" + label + "\n" + serial;
+        SpannableString span = new SpannableString(text);
+
+        int headingEnd = heading.length();
+        int countStart = headingEnd + 1;
+        int countEnd = countStart + count.length();
+        int labelStart = countEnd + 1;
+        int labelEnd = labelStart + label.length();
+        int serialStart = labelEnd + 1;
+
+        span.setSpan(new StyleSpan(Typeface.BOLD), 0, headingEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        span.setSpan(new ForegroundColorSpan(GREEN_DARK), 0, headingEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+        span.setSpan(new RelativeSizeSpan(1.65f), countStart, countEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        span.setSpan(new StyleSpan(Typeface.BOLD), countStart, countEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        span.setSpan(new ForegroundColorSpan(TEXT), countStart, countEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+        span.setSpan(new RelativeSizeSpan(0.86f), labelStart, labelEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        span.setSpan(new ForegroundColorSpan(MUTED), labelStart, labelEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+        span.setSpan(new StyleSpan(Typeface.BOLD), serialStart, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        span.setSpan(new ForegroundColorSpan(GREEN_DARK), serialStart, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+        view.setText(span);
     }
 
     private void refreshPending(TextView view) {

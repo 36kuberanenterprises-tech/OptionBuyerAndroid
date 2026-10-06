@@ -52,6 +52,8 @@ public class MainActivity extends Activity {
     private ImageView signaturePhotoPreview;
     private String photoBase64 = "";
     private String signaturePhotoBase64 = "";
+    private Calendar eapDateValue = Calendar.getInstance();
+    private Calendar dobValue = null;
     private final SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.ENGLISH);
 
     @Override
@@ -72,7 +74,12 @@ public class MainActivity extends Activity {
         addSyncSettings();
 
         eapDateField = addDateField("EAP Date *");
-        eapDateField.setText(sdf.format(Calendar.getInstance().getTime()));
+        eapDateValue = Calendar.getInstance();
+        eapDateValue.set(Calendar.HOUR_OF_DAY, 0);
+        eapDateValue.set(Calendar.MINUTE, 0);
+        eapDateValue.set(Calendar.SECOND, 0);
+        eapDateValue.set(Calendar.MILLISECOND, 0);
+        eapDateField.setText(sdf.format(eapDateValue.getTime()));
         Spinner projectLocation = addSpinner("HAL Project Location *", new String[]{
                 "Select",
                 "Kolar | Mulbagal",
@@ -554,10 +561,12 @@ public class MainActivity extends Activity {
     private void showDatePicker(EditText target) {
         Calendar initial = Calendar.getInstance();
 
-        if (target == dobField && !value(eapDateField).isEmpty()) {
-            try {
-                initial.setTime(sdf.parse(value(eapDateField)));
-            } catch (Exception ignored) {}
+        if (target == eapDateField && eapDateValue != null) {
+            initial.setTimeInMillis(eapDateValue.getTimeInMillis());
+        } else if (target == dobField && dobValue != null) {
+            initial.setTimeInMillis(dobValue.getTimeInMillis());
+        } else if (target == dobField && eapDateValue != null) {
+            initial.setTimeInMillis(eapDateValue.getTimeInMillis());
         }
 
         DatePickerDialog dialog = new DatePickerDialog(
@@ -566,6 +575,14 @@ public class MainActivity extends Activity {
                     Calendar selected = Calendar.getInstance();
                     selected.clear();
                     selected.set(year, month, day, 0, 0, 0);
+                    selected.set(Calendar.MILLISECOND, 0);
+
+                    if (target == eapDateField) {
+                        eapDateValue = (Calendar) selected.clone();
+                    } else if (target == dobField) {
+                        dobValue = (Calendar) selected.clone();
+                    }
+
                     target.setText(sdf.format(selected.getTime()));
                     updateAge();
                 },
@@ -573,14 +590,8 @@ public class MainActivity extends Activity {
                 initial.get(Calendar.MONTH),
                 initial.get(Calendar.DAY_OF_MONTH));
 
-        if (target == dobField) {
-            Calendar maxDob = Calendar.getInstance();
-            if (!value(eapDateField).isEmpty()) {
-                try {
-                    maxDob.setTime(sdf.parse(value(eapDateField)));
-                } catch (Exception ignored) {}
-            }
-            dialog.getDatePicker().setMaxDate(maxDob.getTimeInMillis());
+        if (target == dobField && eapDateValue != null) {
+            dialog.getDatePicker().setMaxDate(eapDateValue.getTimeInMillis());
         }
 
         dialog.show();
@@ -589,26 +600,32 @@ public class MainActivity extends Activity {
     private void updateAge() {
         if (dobField == null || eapDateField == null || ageField == null) return;
 
-        String dobText = value(dobField);
-        String eventText = value(eapDateField);
-
-        if (dobText.isEmpty() || eventText.isEmpty()) {
-            ageField.setText("");
-            return;
-        }
-
         try {
-            Calendar dob = Calendar.getInstance();
-            dob.clear();
-            dob.setTime(sdf.parse(dobText));
+            if (eapDateValue == null && !value(eapDateField).isEmpty()) {
+                Calendar parsedEvent = Calendar.getInstance();
+                parsedEvent.clear();
+                parsedEvent.setTime(sdf.parse(value(eapDateField)));
+                eapDateValue = parsedEvent;
+            }
 
-            Calendar event = Calendar.getInstance();
-            event.clear();
-            event.setTime(sdf.parse(eventText));
+            if (dobValue == null && !value(dobField).isEmpty()) {
+                Calendar parsedDob = Calendar.getInstance();
+                parsedDob.clear();
+                parsedDob.setTime(sdf.parse(value(dobField)));
+                dobValue = parsedDob;
+            }
+
+            if (dobValue == null || eapDateValue == null) {
+                ageField.setText("");
+                return;
+            }
+
+            Calendar dob = (Calendar) dobValue.clone();
+            Calendar event = (Calendar) eapDateValue.clone();
 
             if (event.before(dob)) {
                 ageField.setText("");
-                Toast.makeText(this, "Date of Birth cannot be after the EAP Date. Please select the correct DOB.", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "Date of Birth cannot be after the EAP Date.", Toast.LENGTH_LONG).show();
                 return;
             }
 
@@ -623,10 +640,11 @@ public class MainActivity extends Activity {
                 age--;
             }
 
-            ageField.setText(String.valueOf(Math.max(age, 0)));
+            ageField.setText(String.valueOf(age));
+            ageField.invalidate();
         } catch (Exception ex) {
             ageField.setText("");
-            Toast.makeText(this, "Unable to calculate age. Please reselect DOB and EAP Date.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Unable to calculate age. Please select Date of Birth again.", Toast.LENGTH_LONG).show();
         }
     }
 

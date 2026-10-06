@@ -71,137 +71,146 @@ public class PdfGenerator {
 
         Paint regular = paint(12f, false);
         Paint bold = paint(12f, true);
-        Paint title = paint(14f, true);
-        Paint small = paint(11f, false);
-        Paint smallBold = paint(11f, true);
-        Paint value = paint(10.5f, false);
+        Paint title = paint(14.04f, true);
+        Paint small = paint(11.04f, false);
+        Paint smallBold = paint(11.04f, true);
+        Paint value = paint(10.2f, false);
         Paint line = new Paint(Paint.ANTI_ALIAS_FLAG);
         line.setStyle(Paint.Style.STROKE);
         line.setStrokeWidth(1f);
 
-        drawFit(c, safe(data.optString("totalSerialNumber")), 28, 11, 220, smallBold, 8f);
-        drawFit(c, safe(data.optString("individualSerialNumber")), 360, 11, 210, smallBold, 8f);
+        // Exact source form layout
+        drawLogo(c, HAL_LOGO_B64, new RectF(21.75f, 7.5f, 116.25f, 58f));
+        drawLogo(c, EDII_LOGO_B64, new RectF(483.1f, 6.75f, 588.04f, 55.55f));
 
-        drawLogo(c, HAL_LOGO_B64, new RectF(28, 15, 105, 66));
-        drawLogo(c, EDII_LOGO_B64, new RectF(472, 17, 570, 63));
+        drawCentered(c, "Entrepreneurship Awareness Programme (EAP)", title, 300f, 20.5f);
+        drawCentered(c, "Organized by", regular, 300f, 36.5f);
+        drawCentered(c, "Hindustan Aeronautics Limited (HAL)", bold, 300f, 51.5f);
+        drawCentered(c, "In Collaboration with", regular, 300f, 66.5f);
+        drawCentered(c, "Entrepreneurship Development Institute of India (EDII)", bold, 300f, 81.5f);
+        drawCentered(c, "Website: www.ediindia.org, www. ediindia.ac.in", small, 300f, 95.5f);
 
-        drawCentered(c, "Entrepreneurship Awareness Programme (EAP)", title, 300, 31);
-        drawCentered(c, "Organized by", regular, 300, 50);
-        drawCentered(c, "Hindustan Aeronautics Limited (HAL)", bold, 300, 78);
-        drawCentered(c, "In Collaboration with", regular, 300, 93);
-        drawCentered(c, "Entrepreneurship Development Institute of India (EDII)", bold, 300, 108);
-        drawCentered(c, "Website: www.ediindia.org, www. ediindia.ac.in", small, 300, 122);
+        drawCentered(c, repeat('*', 88), small, 300f, 117f);
+        drawCentered(c, "Registration Form", bold, 302f, 132f);
 
-        drawCentered(c, repeat('*', 88), small, 300, 138);
-        drawCentered(c, "Registration Form", bold, 300, 154);
+        c.drawText("Date:", 83.06f, 148f, regular);
+        drawFit(c, safe(data.optString("eapDate")), 118f, 148f, 180f, value, 8f);
 
-        c.drawText("Date:", 83, 177, regular);
-        drawFit(c, safe(data.optString("eapDate")), 118, 177, 150, value, 8f);
-        c.drawText("Place:", 410, 177, regular);
-        drawFit(c, safe(data.optString("place", data.optString("city"))), 452, 177, 112, value, 8f);
-        drawCentered(c, repeat('*', 88), small, 300, 198);
+        c.drawText("Place:", 410.02f, 148f, regular);
+        drawFit(c, safe(data.optString("place", data.optString("city"))), 449f, 148f, 118f, value, 8f);
+
+        drawCentered(c, repeat('*', 88), small, 300f, 161f);
 
         drawPhotoOrPlaceholder(c, data.optString("photoBase64", ""), line, smallBold);
 
-        label(c, regular, "1)", 89, 226);
-        label(c, regular, "Full Name:", 143, 226);
-        drawFit(c, safe(data.optString("name")), 218, 226, 265, value, 7.5f);
+        c.drawText("1)", 89.3f, 189f, regular);
+        c.drawText("Full Name:", 143.3f, 189f, regular);
+        drawFit(c, safe(data.optString("name")), 216f, 189f, 265f, value, 7.5f);
 
-        label(c, regular, "2)", 89, 252);
-        label(c, regular, "Gender:", 143, 252);
-        drawFit(c, safe(data.optString("gender")), 196, 252, 270, value, 8f);
+        c.drawText("2)", 89.3f, 215f, regular);
+        c.drawText("Gender:", 143.3f, 215f, regular);
+        drawFit(c, safe(data.optString("gender")), 195f, 215f, 285f, value, 8f);
 
-        label(c, regular, "3)", 89, 274);
-        label(c, regular, "Date of Birth:", 143, 274);
-        drawFit(c, safe(data.optString("dob")), 232, 274, 95, value, 8f);
-        label(c, regular, "Age:", 342, 274);
-        String ageText = safe(data.optString("ageOnEapDate"));
-        if (!ageText.isEmpty()) ageText = ageText + " Years";
-        drawFit(c, ageText, 372, 274, 100, value, 8f);
+        c.drawText("3)", 89.3f, 237f, regular);
+        c.drawText("Date of Birth:", 143.3f, 237f, regular);
+        drawFit(c, safe(data.optString("dob")), 229f, 237f, 250f, value, 8f);
 
-        label(c, regular, "4)", 89, 296);
-        label(c, regular, "Father's/Husband's/Mother's Name:", 143, 296);
-        drawFit(c, safe(data.optString("guardianName")), 368, 296, 116, value, 7f);
+        c.drawText("4)", 89.3f, 259f, regular);
+        c.drawText("Father's/Husband's/Mother's Name:", 143.3f, 259f, regular);
+        drawFit(c, safe(data.optString("guardianName")), 365f, 259f, 116f, value, 7f);
 
-        label(c, regular, "5)", 89, 318);
-        label(c, regular, "Full Address:", 143, 318);
-        drawFit(c, safe(fullAddress(data)), 230, 318, 250, value, 7f);
+        c.drawText("5)", 89.3f, 281f, regular);
+        c.drawText("Full Address:", 143.3f, 281f, regular);
+        drawFit(c, safe(fullAddress(data)), 228f, 281f, 252f, value, 6.8f);
 
-        label(c, regular, "6)", 89, 340);
-        label(c, regular, "Mobile Phone:", 143, 340);
-        drawFit(c, safe(data.optString("mobile")), 233, 340, 245, value, 8f);
+        c.drawText("6)", 89.3f, 303f, regular);
+        c.drawText("Mobile Phone:", 143.3f, 303f, regular);
+        drawFit(c, safe(data.optString("mobile")), 232f, 303f, 247f, value, 8f);
 
-        label(c, regular, "7)", 89, 362);
-        label(c, regular, "Alternative Phone No.:", 143, 362);
-        drawFit(c, safe(data.optString("alternateMobile")), 282, 362, 196, value, 8f);
+        c.drawText("7)", 89.3f, 325f, regular);
+        c.drawText("Alternative Phone No.:", 143.3f, 325f, regular);
+        drawFit(c, safe(data.optString("alternateMobile")), 280f, 325f, 200f, value, 8f);
 
-        label(c, regular, "8)", 89, 384);
-        label(c, regular, "Email ID:", 143, 384);
-        drawFit(c, safe(data.optString("email")), 207, 384, 270, value, 7.5f);
+        c.drawText("8)", 89.3f, 347f, regular);
+        c.drawText("Email ID:", 143.3f, 347f, regular);
+        drawFit(c, safe(data.optString("email")), 204f, 347f, 276f, value, 7.5f);
 
-        label(c, regular, "9)", 89, 407);
-        label(c, regular, "Aadhar No.:", 143, 407);
-        drawFit(c, safe(data.optString("idNumber")), 222, 407, 255, value, 8f);
+        c.drawText("9)", 89.3f, 369f, regular);
+        c.drawText("Aadhar No.:", 143.3f, 369f, regular);
+        drawFit(c, safe(data.optString("idNumber")), 219f, 369f, 260f, value, 8f);
 
-        label(c, regular, "10)", 89, 429);
-        label(c, regular, "Highest Educational Qualification:", 143, 429);
-        drawFit(c, safe(data.optString("education")), 353, 429, 125, value, 7f);
+        c.drawText("10)", 89.3f, 392f, regular);
+        c.drawText("Highest Educational Qualification:", 143.3f, 392f, regular);
+        drawFit(c, safe(data.optString("education")), 351f, 392f, 128f, value, 6.8f);
 
-        label(c, regular, "11)", 89, 451);
-        label(c, regular, "Occupation:", 143, 451);
-        drawFit(c, safe(data.optString("occupation")), 220, 451, 255, value, 8f);
+        c.drawText("11)", 89.3f, 414f, regular);
+        c.drawText("Occupation:", 143.3f, 414f, regular);
+        drawFit(c, safe(data.optString("occupation")), 219f, 414f, 260f, value, 8f);
 
-        label(c, regular, "12)", 89, 473);
-        label(c, regular, "Income (Individual):", 143, 473);
-        drawFit(c, safe(data.optString("individualIncome")), 264, 473, 210, value, 8f);
+        c.drawText("12)", 89.3f, 436f, regular);
+        c.drawText("Income (Individual):", 143.3f, 436f, regular);
+        drawFit(c, safe(data.optString("individualIncome")), 263f, 436f, 216f, value, 8f);
 
-        label(c, regular, "13)", 89, 499);
-        label(c, regular, "Category:", 143, 499);
-        drawCheckOption(c, 202, 488, "GEN", 215, 499, "GEN".equalsIgnoreCase(data.optString("category")), small, line);
-        drawCheckOption(c, 246, 488, "EWS", 259, 499, "EWS".equalsIgnoreCase(data.optString("category")), small, line);
-        drawCheckOption(c, 292, 488, "SC", 305, 499, "SC".equalsIgnoreCase(data.optString("category")), small, line);
-        drawCheckOption(c, 328, 488, "ST", 341, 499, "ST".equalsIgnoreCase(data.optString("category")), small, line);
-        drawCheckOption(c, 363, 488, "OBC", 376, 499, "OBC".equalsIgnoreCase(data.optString("category")), small, line);
-        drawCheckOption(c, 408, 488, "MINORITY", 421, 499, "MINORITY".equalsIgnoreCase(data.optString("category")), small, line);
+        c.drawText("13)", 89.3f, 463f, regular);
+        c.drawText("Category:", 143.3f, 463f, regular);
+        drawCheckOption(c, 202.61f, 449.6f, "GEN", 216.05f, 463f,
+                "GEN".equalsIgnoreCase(data.optString("category")), regular, line);
+        drawCheckOption(c, 247.01f, 449.6f, "EWS", 261.89f, 463f,
+                "EWS".equalsIgnoreCase(data.optString("category")), regular, line);
+        drawCheckOption(c, 293.83f, 449.6f, "SC", 308.59f, 463f,
+                "SC".equalsIgnoreCase(data.optString("category")), regular, line);
+        drawCheckOption(c, 329.23f, 449.6f, "ST", 343.99f, 463f,
+                "ST".equalsIgnoreCase(data.optString("category")), regular, line);
+        drawCheckOption(c, 363.19f, 449.6f, "OBC", 378.10f, 463f,
+                "OBC".equalsIgnoreCase(data.optString("category")), regular, line);
+        drawCheckOption(c, 409.30f, 449.6f, "MINORITY", 424.06f, 463f,
+                "MINORITY".equalsIgnoreCase(data.optString("category")), regular, line);
 
-        label(c, regular, "14)", 89, 523);
-        label(c, regular, "Intention for taking part in the EAP:", 143, 523);
-        drawBox(c, 358, 511, 12, line, "Employment".equalsIgnoreCase(data.optString("intention")));
-        c.drawText("a) Employment", 373, 523, regular);
-        drawBox(c, 363, 526, 12, line, "Self Employment".equalsIgnoreCase(data.optString("intention")) ||
+        c.drawText("14)", 89.3f, 486f, regular);
+        c.drawText("Intention for taking part in the EAP:", 143.3f, 486f, regular);
+        drawBox(c, 364.5f, 477.2f, 12f, line, "Employment".equalsIgnoreCase(data.optString("intention")));
+        c.drawText("a) Employment", 382.18f, 486f, regular);
+        drawBox(c, 363.75f, 490.73f, 12f, line,
+                "Self Employment".equalsIgnoreCase(data.optString("intention")) ||
                 "Self-employment".equalsIgnoreCase(data.optString("intention")));
-        c.drawText("b) Self-employment", 378, 538, regular);
+        c.drawText("b) Self-employment", 383.14f, 500f, regular);
 
-        c.drawText("13)", 86, 560, regular);
-        c.drawText("In which sector would you like to start business?", 143, 560, regular);
+        c.drawText("13)", 86.18f, 523f, regular);
+        c.drawText("In which sector would you like to start business?", 143.06f, 523f, regular);
 
-        String sectors = data.optString("sectors", "");
-        drawBox(c, 166, 572, 12, line, containsIgnoreCase(sectors, "Fashion Technology"));
-        c.drawText("Fashion technology", 205, 584, regular);
-        drawBox(c, 166, 594, 12, line, containsIgnoreCase(sectors, "Food Processing"));
-        c.drawText("Food processing", 205, 606, regular);
-        drawBox(c, 166, 616, 12, line, containsIgnoreCase(sectors, "Jute Bag Manufacturing"));
-        c.drawText("Jute Bag manufacturing", 205, 628, regular);
-        drawBox(c, 166, 638, 12, line, containsIgnoreCase(sectors, "Beautician"));
-        c.drawText("Beautician", 205, 650, regular);
+        String selectedSector = data.optString("sector", data.optString("sectors", ""));
+        drawBox(c, 166.3f, 537f, 12f, line, "Fashion Technology".equalsIgnoreCase(selectedSector));
+        c.drawText("Fashion technology", 204.77f, 547f, regular);
+        drawBox(c, 166.3f, 551.05f, 12f, line, "Food Processing".equalsIgnoreCase(selectedSector));
+        c.drawText("Food processing", 204.77f, 561f, regular);
+        drawBox(c, 166.3f, 565.2f, 12f, line, "Jute Bag Manufacturing".equalsIgnoreCase(selectedSector));
+        c.drawText("Jute Bag manufacturing", 204.77f, 575f, regular);
+        drawBox(c, 166.3f, 579.25f, 12f, line, "Beautician".equalsIgnoreCase(selectedSector));
+        c.drawText("Beautician", 204.77f, 589f, regular);
 
-        c.drawText("14)", 86, 672, regular);
-        c.drawText("Do you want to attend Micro Skill Entrepreneurship Development", 143, 672, regular);
-        c.drawText("Programme (MSDP) to understand business?", 143, 687, regular);
+        c.drawText("14)", 86.18f, 611f, regular);
+        c.drawText("Do you want to attend Micro Skill Entrepreneurship Development", 143.06f, 611f, regular);
+        c.drawText("Programme (MSDP) to understand business?", 142.94f, 625f, regular);
 
         boolean msdpYes = "Yes".equalsIgnoreCase(data.optString("msdpInterest"));
         boolean msdpNo = "No".equalsIgnoreCase(data.optString("msdpInterest"));
-        drawBox(c, 435, 675, 12, line, msdpYes);
-        c.drawText("Yes", 450, 687, regular);
-        drawBox(c, 507, 675, 12, line, msdpNo);
-        c.drawText("No", 522, 687, regular);
+        drawBox(c, 433.28f, 615.83f, 12f, line, msdpYes);
+        c.drawText("Yes", 451.06f, 625f, regular);
+        drawBox(c, 505.73f, 615.83f, 12f, line, msdpNo);
+        c.drawText("No", 523.44f, 625f, regular);
 
-        c.drawText("I declare that the above information provided by me is completely correct. I will be", 58, 716, regular);
-        c.drawText("responsible if any discrepancy is detected.", 115, 731, regular);
+        c.drawText("I declare that the above information provided by me is completely correct. I will be",
+                57.86f, 654f, regular);
+        c.drawText("responsible if any discrepancy is detected.", 114.62f, 669f, regular);
 
-        RectF sign = new RectF(413, 747, 560, 790);
+        RectF sign = new RectF(408f, 686.15f, 554.25f, 729.65f);
         c.drawRect(sign, line);
         drawSignature(c, data.optString("signatureBase64", ""), sign, smallBold);
+
+        drawFit(c, safe(data.optString("totalSerialNumber", "EAP/2026/N")),
+                72.02f, 797f, 180f, small, 8f);
+        drawFit(c, safe(data.optString("individualSerialNumber", "EAP/2026/K-S/N")),
+                438.46f, 797f, 145f, small, 8f);
 
         document.finishPage(page);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -250,20 +259,31 @@ public class PdfGenerator {
     }
 
     private static void drawPhotoOrPlaceholder(Canvas c, String b64, Paint border, Paint label) {
-        RectF box = new RectF(493, 214, 568, 315);
+        RectF box = new RectF(492.75f, 178.43f, 568.20f, 279.68f);
         c.drawRect(box, border);
+
         if (b64 != null && !b64.trim().isEmpty()) {
             try {
                 byte[] bytes = Base64.decode(b64, Base64.DEFAULT);
                 Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
                 if (bitmap != null) {
-                    RectF inset = new RectF(494, 215, 567, 314);
-                    c.drawBitmap(bitmap, null, inset, new Paint(Paint.ANTI_ALIAS_FLAG));
+                    float scale = Math.max(box.width() / bitmap.getWidth(), box.height() / bitmap.getHeight());
+                    float drawW = bitmap.getWidth() * scale;
+                    float drawH = bitmap.getHeight() * scale;
+                    float left = box.left + (box.width() - drawW) / 2f;
+                    float top = box.top + (box.height() - drawH) / 2f;
+                    RectF destination = new RectF(left, top, left + drawW, top + drawH);
+
+                    int save = c.save();
+                    c.clipRect(box.left + 1f, box.top + 1f, box.right - 1f, box.bottom - 1f);
+                    c.drawBitmap(bitmap, null, destination, new Paint(Paint.ANTI_ALIAS_FLAG));
+                    c.restoreToCount(save);
                     return;
                 }
             } catch (Exception ignored) {}
         }
-        c.drawText("PHOTO", 514, 266, label);
+
+        c.drawText("PHOTO", 510.48f, 229f, label);
     }
 
     private static void drawCentered(Canvas c, String text, Paint p, float centerX, float baselineY) {

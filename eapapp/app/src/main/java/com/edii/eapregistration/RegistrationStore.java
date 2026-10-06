@@ -5,18 +5,43 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 
 public class RegistrationStore extends SQLiteOpenHelper {
+
     public static class Pending {
         public long id;
         public String requestId;
         public String payload;
+
         Pending(long id, String requestId, String payload) {
             this.id = id;
             this.requestId = requestId;
             this.payload = payload;
+        }
+    }
+
+    public static class Record {
+        public long id;
+        public String requestId;
+        public String payload;
+        public String status;
+        public String lastError;
+        public long createdAt;
+        public Long syncedAt;
+
+        Record(long id, String requestId, String payload, String status,
+               String lastError, long createdAt, Long syncedAt) {
+            this.id = id;
+            this.requestId = requestId;
+            this.payload = payload;
+            this.status = status;
+            this.lastError = lastError;
+            this.createdAt = createdAt;
+            this.syncedAt = syncedAt;
         }
     }
 
@@ -52,7 +77,7 @@ public class RegistrationStore extends SQLiteOpenHelper {
         List<Pending> list = new ArrayList<>();
         Cursor c = getReadableDatabase().query(
                 "registrations",
-                new String[]{"id","request_id","payload"},
+                new String[]{"id", "request_id", "payload"},
                 "sync_status<>?",
                 new String[]{"SYNCED"},
                 null, null, "created_at ASC", String.valueOf(limit));
@@ -66,12 +91,65 @@ public class RegistrationStore extends SQLiteOpenHelper {
         return list;
     }
 
+    public List<Record> getRecords(int limit) {
+        List<Record> list = new ArrayList<>();
+        Cursor c = getReadableDatabase().query(
+                "registrations",
+                new String[]{"id", "request_id", "payload", "sync_status", "last_error", "created_at", "synced_at"},
+                null, null, null, null, "created_at DESC", String.valueOf(limit));
+        try {
+            while (c.moveToNext()) {
+                Long syncedAt = c.isNull(6) ? null : c.getLong(6);
+                list.add(new Record(
+                        c.getLong(0),
+                        c.getString(1),
+                        c.getString(2),
+                        c.getString(3),
+                        c.getString(4),
+                        c.getLong(5),
+                        syncedAt
+                ));
+            }
+        } finally {
+            c.close();
+        }
+        return list;
+    }
+
+    public int totalCount() {
+        Cursor c = getReadableDatabase().rawQuery(
+                "SELECT COUNT(*) FROM registrations", null);
+        try {
+            return c.moveToFirst() ? c.getInt(0) : 0;
+        } finally {
+            c.close();
+        }
+    }
+
+    public int todayCount() {
+        Calendar start = Calendar.getInstance();
+        start.set(Calendar.HOUR_OF_DAY, 0);
+        start.set(Calendar.MINUTE, 0);
+        start.set(Calendar.SECOND, 0);
+        start.set(Calendar.MILLISECOND, 0);
+
+        Cursor c = getReadableDatabase().rawQuery(
+                "SELECT COUNT(*) FROM registrations WHERE created_at>=?",
+                new String[]{String.valueOf(start.getTimeInMillis())});
+        try {
+            return c.moveToFirst() ? c.getInt(0) : 0;
+        } finally {
+            c.close();
+        }
+    }
+
     public void markSynced(long id) {
         ContentValues v = new ContentValues();
         v.put("sync_status", "SYNCED");
         v.put("synced_at", System.currentTimeMillis());
         v.putNull("last_error");
-        getWritableDatabase().update("registrations", v, "id=?", new String[]{String.valueOf(id)});
+        getWritableDatabase().update(
+                "registrations", v, "id=?", new String[]{String.valueOf(id)});
     }
 
     public void markFailed(long id, String error) {
@@ -79,7 +157,8 @@ public class RegistrationStore extends SQLiteOpenHelper {
         v.put("sync_status", "PENDING");
         if (error != null && error.length() > 500) error = error.substring(0, 500);
         v.put("last_error", error == null ? "Sync error" : error);
-        getWritableDatabase().update("registrations", v, "id=?", new String[]{String.valueOf(id)});
+        getWritableDatabase().update(
+                "registrations", v, "id=?", new String[]{String.valueOf(id)});
     }
 
     public int pendingCount() {

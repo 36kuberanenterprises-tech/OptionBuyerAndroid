@@ -79,15 +79,18 @@ public class PdfGenerator {
         line.setStyle(Paint.Style.STROKE);
         line.setStrokeWidth(1f);
 
-        drawLogo(c, HAL_LOGO_B64, new RectF(28, 5, 105, 56));
-        drawLogo(c, EDII_LOGO_B64, new RectF(472, 7, 570, 53));
+        drawFit(c, safe(data.optString("totalSerialNumber")), 28, 11, 220, smallBold, 8f);
+        drawFit(c, safe(data.optString("individualSerialNumber")), 360, 11, 210, smallBold, 8f);
 
-        drawCentered(c, "Entrepreneurship Awareness Programme (EAP)", title, 300, 21);
-        drawCentered(c, "Organized by", regular, 300, 43);
-        drawCentered(c, "Hindustan Aeronautics Limited (HAL)", bold, 300, 73);
-        drawCentered(c, "In Collaboration with", regular, 300, 88);
-        drawCentered(c, "Entrepreneurship Development Institute of India (EDII)", bold, 300, 103);
-        drawCentered(c, "Website: www.ediindia.org, www. ediindia.ac.in", small, 300, 117);
+        drawLogo(c, HAL_LOGO_B64, new RectF(28, 15, 105, 66));
+        drawLogo(c, EDII_LOGO_B64, new RectF(472, 17, 570, 63));
+
+        drawCentered(c, "Entrepreneurship Awareness Programme (EAP)", title, 300, 31);
+        drawCentered(c, "Organized by", regular, 300, 50);
+        drawCentered(c, "Hindustan Aeronautics Limited (HAL)", bold, 300, 78);
+        drawCentered(c, "In Collaboration with", regular, 300, 93);
+        drawCentered(c, "Entrepreneurship Development Institute of India (EDII)", bold, 300, 108);
+        drawCentered(c, "Website: www.ediindia.org, www. ediindia.ac.in", small, 300, 122);
 
         drawCentered(c, repeat('*', 88), small, 300, 138);
         drawCentered(c, "Registration Form", bold, 300, 154);
@@ -154,9 +157,12 @@ public class PdfGenerator {
 
         label(c, regular, "13)", 89, 499);
         label(c, regular, "Category:", 143, 499);
-        drawCheckOption(c, 203, 488, "SC", 218, 499, "SC".equalsIgnoreCase(data.optString("category")), regular, line);
-        drawCheckOption(c, 238, 488, "ST", 253, 499, "ST".equalsIgnoreCase(data.optString("category")), regular, line);
-        drawCheckOption(c, 272, 488, "OBC", 287, 499, "OBC".equalsIgnoreCase(data.optString("category")), regular, line);
+        drawCheckOption(c, 202, 488, "GEN", 215, 499, "GEN".equalsIgnoreCase(data.optString("category")), small, line);
+        drawCheckOption(c, 246, 488, "EWS", 259, 499, "EWS".equalsIgnoreCase(data.optString("category")), small, line);
+        drawCheckOption(c, 292, 488, "SC", 305, 499, "SC".equalsIgnoreCase(data.optString("category")), small, line);
+        drawCheckOption(c, 328, 488, "ST", 341, 499, "ST".equalsIgnoreCase(data.optString("category")), small, line);
+        drawCheckOption(c, 363, 488, "OBC", 376, 499, "OBC".equalsIgnoreCase(data.optString("category")), small, line);
+        drawCheckOption(c, 408, 488, "MINORITY", 421, 499, "MINORITY".equalsIgnoreCase(data.optString("category")), small, line);
 
         label(c, regular, "14)", 89, 523);
         label(c, regular, "Intention for taking part in the EAP:", 143, 523);

@@ -40,6 +40,7 @@ import java.util.UUID;
 
 public class MainActivity extends Activity {
     private static final int PHOTO_REQUEST = 2001;
+    private static final int SIGNATURE_PHOTO_REQUEST = 2002;
     private static final int SYNC_JOB_ID = 31001;
 
     private LinearLayout container;
@@ -47,7 +48,10 @@ public class MainActivity extends Activity {
     private EditText eapDateField;
     private EditText dobField;
     private EditText ageField;
+    private SignaturePadView signaturePad;
+    private ImageView signaturePhotoPreview;
     private String photoBase64 = "";
+    private String signaturePhotoBase64 = "";
     private final SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.ENGLISH);
 
     @Override
@@ -68,6 +72,18 @@ public class MainActivity extends Activity {
         addSyncSettings();
 
         eapDateField = addDateField("EAP Date *");
+        Spinner projectLocation = addSpinner("HAL Project Location *", new String[]{
+                "Select",
+                "Kolar | Mulbagal",
+                "Kolar | Srinivaspur",
+                "Bengaluru Rural | Devanahalli",
+                "Bengaluru Rural | Hoskote",
+                "Tumkur | Tumkur",
+                "Tumkur | Gubbi",
+                "Tumkur | Sira",
+                "Bengaluru South | Ramanagara",
+                "Bengaluru South | Channapatna"
+        });
         addPhotoSection();
 
         EditText name = addTextField("Name *", "");
@@ -82,7 +98,9 @@ public class MainActivity extends Activity {
         EditText village = addTextField("Village *", "");
         EditText panchayat = addTextField("Panchayat *", "");
         EditText block = addTextField("Block", "");
-        Spinner city = addSpinner("City *", new String[]{"Select", "Mulbagal", "Srinivaspur"});
+        EditText city = addTextField("City / Taluk", "");
+        EditText pinCode = addTextField("PIN Code *", "");
+        pinCode.setInputType(InputType.TYPE_CLASS_NUMBER);
         EditText state = addTextField("State *", "Karnataka");
 
         EditText mobile = addTextField("Mobile Number *", "");
@@ -116,6 +134,8 @@ public class MainActivity extends Activity {
                 "Do you want to attend MSDP to understand business? *",
                 new String[]{"Yes", "No"});
 
+        addSignatureSection();
+
         CheckBox declaration = new CheckBox(this);
         declaration.setText("I declare that the information provided by me is correct. I will be responsible for any discrepancy detected.");
         declaration.setPadding(0, dp(12), 0, dp(8));
@@ -135,16 +155,24 @@ public class MainActivity extends Activity {
 
             if (blank(eapDateField) || blank(name) || selectedRadio(gender).isEmpty() ||
                     blank(dobField) || blank(guardianName) || blank(village) || blank(panchayat) ||
-                    "Select".equals(selectedSpinner(city)) || blank(state) || blank(mobile) ||
+                    "Select".equals(selectedSpinner(projectLocation)) || blank(pinCode) ||
+                    blank(state) || blank(mobile) ||
                     blank(education) || blank(occupation) ||
                     "Select".equals(selectedSpinner(category)) ||
                     selectedRadio(intention).isEmpty() || selectedRadio(msdp).isEmpty() ||
-                    selectedSectors.isEmpty() || !declaration.isChecked()) {
+                    selectedSectors.isEmpty() || !hasApplicantSignature() || !declaration.isChecked()) {
                 Toast.makeText(this, "Please complete all mandatory fields and declaration.", Toast.LENGTH_LONG).show();
                 return;
             }
 
             String mobileText = mobile.getText().toString().trim();
+            String pinText = pinCode.getText().toString().trim();
+
+            if (!pinText.matches("^[1-9][0-9]{5}$")) {
+                Toast.makeText(this, "Enter a valid 6 digit PIN code.", Toast.LENGTH_LONG).show();
+                return;
+            }
+
             if (!mobileText.matches("^[6-9][0-9]{9}$")) {
                 Toast.makeText(this, "Enter a valid 10 digit mobile number.", Toast.LENGTH_LONG).show();
                 return;
@@ -161,10 +189,12 @@ public class MainActivity extends Activity {
                 payload.put("village", value(village));
                 payload.put("panchayat", value(panchayat));
                 payload.put("block", value(block));
-                payload.put("city", selectedSpinner(city));
+                payload.put("city", value(city));
+                payload.put("pinCode", pinText);
                 payload.put("state", value(state));
-                payload.put("place", selectedSpinner(city));
-                payload.put("fullAddress", buildFullAddress(value(village), value(panchayat), value(block), selectedSpinner(city), value(state)));
+                payload.put("projectLocation", selectedSpinner(projectLocation));
+                payload.put("place", projectPlace(selectedSpinner(projectLocation)));
+                payload.put("fullAddress", buildFullAddress(value(village), value(panchayat), value(block), value(city), value(state), pinText));
                 payload.put("mobile", mobileText);
                 payload.put("alternateMobile", value(alternateMobile));
                 payload.put("email", value(email));
@@ -178,6 +208,18 @@ public class MainActivity extends Activity {
                 payload.put("sectors", join(selectedSectors));
                 payload.put("msdpInterest", selectedRadio(msdp));
                 payload.put("photoBase64", photoBase64);
+
+                String signatureType;
+                String signatureBase64;
+                if (signaturePad != null && signaturePad.hasSignature()) {
+                    signatureType = "Digital";
+                    signatureBase64 = signaturePad.toBase64();
+                } else {
+                    signatureType = "Photo";
+                    signatureBase64 = signaturePhotoBase64;
+                }
+                payload.put("signatureType", signatureType);
+                payload.put("signatureBase64", signatureBase64);
                 payload.put("declarationAccepted", true);
 
                 String requestId = UUID.randomUUID().toString();
@@ -359,6 +401,56 @@ public class MainActivity extends Activity {
         return list;
     }
 
+    private void addSignatureSection() {
+        addSection("Applicant Signature *");
+        addNote("Applicant can sign directly on the screen with a finger. If required, a photo of the signature can be captured instead.");
+
+        signaturePad = new SignaturePadView(this);
+        signaturePad.setBackgroundColor(0xFFFFFFFF);
+        container.addView(signaturePad, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(180)));
+
+        LinearLayout buttons = new LinearLayout(this);
+        buttons.setOrientation(LinearLayout.HORIZONTAL);
+
+        Button clear = new Button(this);
+        clear.setText("CLEAR SIGNATURE");
+        Button photo = new Button(this);
+        photo.setText("CAPTURE SIGNATURE PHOTO");
+
+        buttons.addView(clear, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        buttons.addView(photo, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        container.addView(buttons);
+
+        signaturePhotoPreview = new ImageView(this);
+        signaturePhotoPreview.setBackgroundColor(0xFFECECEC);
+        signaturePhotoPreview.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        signaturePhotoPreview.setVisibility(View.GONE);
+        container.addView(signaturePhotoPreview, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(120)));
+
+        clear.setOnClickListener(v -> {
+            signaturePad.clear();
+            signaturePhotoBase64 = "";
+            signaturePhotoPreview.setImageDrawable(null);
+            signaturePhotoPreview.setVisibility(View.GONE);
+        });
+
+        photo.setOnClickListener(v -> {
+            Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+            if (intent.resolveActivity(getPackageManager()) != null) {
+                startActivityForResult(intent, SIGNATURE_PHOTO_REQUEST);
+            } else {
+                Toast.makeText(this, "Camera is not available.", Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    private boolean hasApplicantSignature() {
+        return (signaturePad != null && signaturePad.hasSignature()) ||
+                (signaturePhotoBase64 != null && !signaturePhotoBase64.isEmpty());
+    }
+
     private void addPhotoSection() {
         addSection("Photo");
         photoPreview = new ImageView(this);
@@ -383,15 +475,24 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == PHOTO_REQUEST && resultCode == RESULT_OK && data != null) {
+        if (resultCode == RESULT_OK && data != null) {
             Bundle extras = data.getExtras();
             Object obj = extras == null ? null : extras.get("data");
             if (obj instanceof Bitmap) {
                 Bitmap bitmap = (Bitmap) obj;
-                photoPreview.setImageBitmap(bitmap);
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 75, out);
-                photoBase64 = Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP);
+
+                if (requestCode == PHOTO_REQUEST) {
+                    photoPreview.setImageBitmap(bitmap);
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 75, out);
+                    photoBase64 = Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP);
+                } else if (requestCode == SIGNATURE_PHOTO_REQUEST) {
+                    signaturePhotoPreview.setImageBitmap(bitmap);
+                    signaturePhotoPreview.setVisibility(View.VISIBLE);
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 80, out);
+                    signaturePhotoBase64 = Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP);
+                    if (signaturePad != null) signaturePad.clear();
+                }
             }
         }
     }
@@ -454,14 +555,21 @@ public class MainActivity extends Activity {
         return e.getText() == null ? "" : e.getText().toString().trim();
     }
 
-    private String buildFullAddress(String village, String panchayat, String block, String city, String state) {
+    private String buildFullAddress(String village, String panchayat, String block, String city, String state, String pinCode) {
         List<String> parts = new ArrayList<>();
         if (!village.isEmpty()) parts.add(village);
         if (!panchayat.isEmpty()) parts.add(panchayat);
         if (!block.isEmpty()) parts.add(block);
-        if (!city.isEmpty() && !"Select".equals(city)) parts.add(city);
+        if (!city.isEmpty()) parts.add(city);
         if (!state.isEmpty()) parts.add(state);
+        if (!pinCode.isEmpty()) parts.add("PIN " + pinCode);
         return join(parts);
+    }
+
+    private String projectPlace(String projectLocation) {
+        if (projectLocation == null) return "";
+        int sep = projectLocation.indexOf("|");
+        return sep >= 0 ? projectLocation.substring(sep + 1).trim() : projectLocation.trim();
     }
 
     private String join(List<String> values) {

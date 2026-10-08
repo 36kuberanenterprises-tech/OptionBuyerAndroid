@@ -649,6 +649,7 @@ public class MainActivity extends Activity {
         final String requestId = UUID.randomUUID().toString();
         final String projectLocation = selectedSpinner(projectLocationSpinner);
         final String locationCode = projectLocationCode(projectLocation);
+        final String applicantName = value(nameField);
 
         networkExecutor.execute(() -> {
             try {
@@ -657,7 +658,7 @@ public class MainActivity extends Activity {
                 request.put("clientRequestId", requestId);
                 request.put("projectLocation", projectLocation);
                 request.put("locationCode", locationCode);
-                request.put("name", value(nameField));
+                request.put("name", applicantName);
 
                 JSONObject reservation = postCentral(request);
                 if (!reservation.optBoolean("success", false)) {

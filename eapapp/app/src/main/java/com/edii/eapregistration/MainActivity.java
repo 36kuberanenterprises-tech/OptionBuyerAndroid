@@ -76,6 +76,8 @@ public class MainActivity extends Activity {
     private static final int SIGNATURE_PICK_REQUEST = 2004;
     private static final int SYNC_JOB_ID = 31001;
     private static final int CAMERA_PERMISSION_REQUEST = 41001;
+    private static final String CENTRAL_API_URL = "https://script.google.com/macros/s/AKfycbwE3zSkPHObRKJhtjQjz34m3gwFJ5fr0ptrb-YCyYZoV8fMDZZwKSnsiqCEgN7GFvrJxw/exec";
+    private static final String CENTRAL_API_TOKEN = "EAP_HAL_EDII_2026_AJAY_SRO_8K4M7X2P";
 
     private static final int GREEN = Color.rgb(40, 153, 50);
     private static final int GREEN_DARK = Color.rgb(28, 125, 39);
@@ -146,12 +148,26 @@ public class MainActivity extends Activity {
                 View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR |
                 View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
 
+        ensureCentralSyncConfig();
         buildAppShell();
         showHome();
         requestEssentialPermissions();
 
         if (new RegistrationStore(this).pendingCount() > 0) {
             scheduleSync();
+        }
+    }
+
+    private void ensureCentralSyncConfig() {
+        SharedPreferences prefs = getSharedPreferences("sync_settings", MODE_PRIVATE);
+        String currentUrl = prefs.getString("api_url", "");
+        String currentToken = prefs.getString("api_token", "");
+
+        if (!CENTRAL_API_URL.equals(currentUrl) || !CENTRAL_API_TOKEN.equals(currentToken)) {
+            prefs.edit()
+                    .putString("api_url", CENTRAL_API_URL)
+                    .putString("api_token", CENTRAL_API_TOKEN)
+                    .apply();
         }
     }
 
@@ -1218,16 +1234,13 @@ public class MainActivity extends Activity {
         centralNote.setPadding(dp(2), dp(4), dp(2), dp(10));
         syncCard.addView(centralNote);
 
-        SharedPreferences prefs = getSharedPreferences("sync_settings", MODE_PRIVATE);
-        EditText url = createInput(prefs.getString("api_url", ""));
-        url.setHint("Apps Script Web App URL");
-
-        EditText token = createInput(prefs.getString("api_token", ""));
-        token.setHint("API Token");
-        token.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-
-        syncCard.addView(fieldBlock("Admin Apps Script Web App URL", url));
-        syncCard.addView(fieldBlock("Admin API Token", token));
+        TextView destination = new TextView(this);
+        destination.setText("Connected to: EAP_Master Sheet\nStatus: Central sync configured and locked");
+        destination.setTextColor(TEXT);
+        destination.setTextSize(14);
+        destination.setLineSpacing(0, 1.2f);
+        destination.setPadding(dp(2), dp(2), 0, dp(10));
+        syncCard.addView(destination);
 
         TextView pending = new TextView(this);
         pending.setTextColor(MUTED);
@@ -1236,36 +1249,16 @@ public class MainActivity extends Activity {
         syncCard.addView(pending);
         refreshPending(pending);
 
-        LinearLayout actions = buttonRow();
-        Button save = makeButton("Save Settings", true);
-        Button sync = makeButton("Sync Now", false);
-        actions.addView(save, weightedButtonParams(true));
-        actions.addView(sync, weightedButtonParams(false));
-        syncCard.addView(actions);
-
-        save.setOnClickListener(v -> {
-            String u = value(url);
-            String t = value(token);
-
-            if (!u.isEmpty() && !u.startsWith("https://")) {
-                Toast.makeText(this, "Enter a valid HTTPS Apps Script URL.", Toast.LENGTH_LONG).show();
-                return;
-            }
-
-            prefs.edit()
-                    .putString("api_url", u)
-                    .putString("api_token", t)
-                    .apply();
-
-            scheduleSync();
-            refreshPending(pending);
-            Toast.makeText(this, "Sync settings saved.", Toast.LENGTH_SHORT).show();
-        });
+        Button sync = makeButton("Sync Now", true);
+        syncCard.addView(sync, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
 
         sync.setOnClickListener(v -> {
+            ensureCentralSyncConfig();
             scheduleSync();
             refreshPending(pending);
-            Toast.makeText(this, "Sync queued. It will run when internet is available.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Central sync queued.", Toast.LENGTH_SHORT).show();
         });
 
         LinearLayout appCard = createSectionCard(page, "App Information");

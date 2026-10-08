@@ -1,6 +1,7 @@
 package com.edii.eapregistration;
 
 import android.app.Activity;
+import android.Manifest;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.app.AlertDialog;
@@ -9,6 +10,7 @@ import android.app.job.JobInfo;
 import android.app.job.JobScheduler;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
@@ -73,6 +75,7 @@ public class MainActivity extends Activity {
     private static final int PHOTO_PICK_REQUEST = 2003;
     private static final int SIGNATURE_PICK_REQUEST = 2004;
     private static final int SYNC_JOB_ID = 31001;
+    private static final int CAMERA_PERMISSION_REQUEST = 41001;
 
     private static final int GREEN = Color.rgb(40, 153, 50);
     private static final int GREEN_DARK = Color.rgb(28, 125, 39);
@@ -93,6 +96,7 @@ public class MainActivity extends Activity {
     private ImageView signaturePhotoPreview;
     private String photoBase64 = "";
     private String signaturePhotoBase64 = "";
+    private int pendingCameraRequestCode = -1;
 
     private EditText eapDateField;
     private EditText nameField;
@@ -144,6 +148,7 @@ public class MainActivity extends Activity {
 
         buildAppShell();
         showHome();
+        requestEssentialPermissions();
 
         if (new RegistrationStore(this).pendingCount() > 0) {
             scheduleSync();
@@ -1270,7 +1275,9 @@ public class MainActivity extends Activity {
                 "\nCentral data destination: EAP_Master Sheet only" +
                 "\nCentral serial control: Enabled" +
                 "\nPDF storage: Central Drive + local Downloads" +
-                "\nFinal submission requires central connection");
+                "\nFinal submission requires central connection" +
+                "\n\nDesigned and Developed by Ajay Rao" +
+                "\nEDII SRO Bengaluru");
         info.setTextColor(TEXT);
         info.setTextSize(14);
         info.setLineSpacing(0, 1.25f);
@@ -1499,12 +1506,58 @@ public class MainActivity extends Activity {
         return d;
     }
 
+    private void requestEssentialPermissions() {
+        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(
+                    new String[]{Manifest.permission.CAMERA},
+                    CAMERA_PERMISSION_REQUEST);
+        }
+    }
+
     private void openCamera(int requestCode) {
+        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            pendingCameraRequestCode = requestCode;
+            requestPermissions(
+                    new String[]{Manifest.permission.CAMERA},
+                    CAMERA_PERMISSION_REQUEST);
+            return;
+        }
+        launchCamera(requestCode);
+    }
+
+    private void launchCamera(int requestCode) {
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         if (intent.resolveActivity(getPackageManager()) != null) {
             startActivityForResult(intent, requestCode);
         } else {
             Toast.makeText(this, "Camera is not available.", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(
+            int requestCode,
+            String[] permissions,
+            int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode != CAMERA_PERMISSION_REQUEST) return;
+
+        boolean granted = grantResults.length > 0 &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED;
+
+        if (granted) {
+            Toast.makeText(this, "Camera permission enabled.", Toast.LENGTH_SHORT).show();
+            if (pendingCameraRequestCode != -1) {
+                int next = pendingCameraRequestCode;
+                pendingCameraRequestCode = -1;
+                launchCamera(next);
+            }
+        } else {
+            pendingCameraRequestCode = -1;
+            Toast.makeText(this,
+                    "Camera permission is required for live candidate and signature photos. You can still use Upload Photo.",
+                    Toast.LENGTH_LONG).show();
         }
     }
 

@@ -46,6 +46,7 @@ public class SyncJobService extends JobService {
                     }
                     try {
                         JSONObject json = new JSONObject(item.payload);
+                        json.put("action", "submitRegistration");
                         json.put("token", apiToken.trim());
                         json.put("clientRequestId", item.requestId);
 

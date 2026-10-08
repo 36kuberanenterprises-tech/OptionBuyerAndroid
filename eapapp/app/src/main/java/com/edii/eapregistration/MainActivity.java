@@ -50,12 +50,21 @@ import android.widget.Toast;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
+import java.io.BufferedReader;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
 
@@ -120,6 +129,7 @@ public class MainActivity extends Activity {
     private Calendar dobValue = null;
     private final SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy", Locale.ENGLISH);
     private final SimpleDateFormat historyDateFormat = new SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.ENGLISH);
+    private final ExecutorService networkExecutor = Executors.newSingleThreadExecutor();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -621,21 +631,85 @@ public class MainActivity extends Activity {
             return;
         }
 
+        SharedPreferences syncPrefs = getSharedPreferences("sync_settings", MODE_PRIVATE);
+        String apiUrl = syncPrefs.getString("api_url", "");
+        String apiToken = syncPrefs.getString("api_token", "");
+        if (apiUrl == null || !apiUrl.startsWith("https://") ||
+                apiToken == null || apiToken.trim().isEmpty()) {
+            Toast.makeText(this,
+                    "Central EAP Master sync is not configured. Open More and complete Admin Sync Setup.",
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+
         submitButton.setEnabled(false);
+        submitButton.setText("Getting Central Serial...");
+        saveStatusView.setText("Connecting to EAP_Master Sheet...");
+
+        final String requestId = UUID.randomUUID().toString();
+        final String projectLocation = selectedSpinner(projectLocationSpinner);
+        final String locationCode = projectLocationCode(projectLocation);
+
+        networkExecutor.execute(() -> {
+            try {
+                JSONObject request = new JSONObject();
+                request.put("action", "reserveSerial");
+                request.put("clientRequestId", requestId);
+                request.put("projectLocation", projectLocation);
+                request.put("locationCode", locationCode);
+                request.put("name", value(nameField));
+
+                JSONObject reservation = postCentral(request);
+                if (!reservation.optBoolean("success", false)) {
+                    throw new Exception(reservation.optString("message", "Central serial could not be reserved."));
+                }
+
+                runOnUiThread(() -> saveWithCentralReservation(
+                        reservation,
+                        requestId,
+                        projectLocation,
+                        locationCode,
+                        pin,
+                        mobile,
+                        altMobile,
+                        aadhaar
+                ));
+            } catch (Exception ex) {
+                runOnUiThread(() -> {
+                    submitButton.setEnabled(true);
+                    submitButton.setText("Submit Application");
+                    saveStatusView.setText("Central sync unavailable: " + ex.getMessage());
+                    Toast.makeText(this,
+                            "Unable to connect to EAP_Master Sheet. Internet and central sync are required for final submission.",
+                            Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+    }
+
+    private void saveWithCentralReservation(
+            JSONObject reservation,
+            String requestId,
+            String projectLocation,
+            String locationCode,
+            String pin,
+            String mobile,
+            String altMobile,
+            String aadhaar) {
+
         submitButton.setText("Saving...");
-
         try {
-            String projectLocation = selectedSpinner(projectLocationSpinner);
-            String locationCode = projectLocationCode(projectLocation);
+            String totalSerial = reservation.optString("totalSerialNumber", "");
+            String locationSerial = reservation.optString("individualSerialNumber", "");
+            int totalNumber = reservation.optInt("totalApplicationCount", 0);
+            int locationNumber = reservation.optInt("locationApplicationCount", 0);
 
-            SharedPreferences serialPrefs = getSharedPreferences("serial_counters_2026_v2", MODE_PRIVATE);
-            int totalNumber = serialPrefs.getInt("total_2026", 0) + 1;
-            int locationNumber = serialPrefs.getInt("location_2026_" + locationCode, 0) + 1;
-
-            String totalSerial = "EAP/2026/" + formatSerialNumber(totalNumber);
-            String locationSerial = "EAP/2026/" + locationCode + "/" + formatSerialNumber(locationNumber);
+            if (totalSerial.isEmpty() || locationSerial.isEmpty()) {
+                throw new Exception("Central serial response is incomplete.");
+            }
 
             JSONObject payload = new JSONObject();
+            payload.put("action", "submitRegistration");
             payload.put("totalSerialNumber", totalSerial);
             payload.put("individualSerialNumber", locationSerial);
             payload.put("totalApplicationCount", totalNumber);
@@ -681,8 +755,6 @@ public class MainActivity extends Activity {
             payload.put("signatureType", "Photo");
             payload.put("signatureBase64", signaturePhotoBase64);
             payload.put("declarationAccepted", true);
-
-            String requestId = UUID.randomUUID().toString();
             payload.put("clientRequestId", requestId);
 
             PdfGenerator.Result pdf = PdfGenerator.createAndSave(this, payload, requestId);
@@ -692,16 +764,11 @@ public class MainActivity extends Activity {
             RegistrationStore store = new RegistrationStore(this);
             store.savePending(requestId, payload.toString());
 
-            serialPrefs.edit()
-                    .putInt("total_2026", totalNumber)
-                    .putInt("location_2026_" + locationCode, locationNumber)
-                    .apply();
-
             scheduleSync();
             updateSerialPreview();
 
-            saveStatusView.setText("Saved locally. PDF: " + pdf.savedLocation +
-                    " | Pending sync: " + store.pendingCount());
+            saveStatusView.setText("Saved locally and queued for EAP_Master Sheet. PDF: " +
+                    pdf.savedLocation + " | Pending sync: " + store.pendingCount());
 
             showSuccessDialog(
                     value(nameField),
@@ -714,6 +781,64 @@ public class MainActivity extends Activity {
             saveStatusView.setText("Unable to save: " + ex.getMessage());
             Toast.makeText(this, "Unable to save registration.", Toast.LENGTH_LONG).show();
         }
+    }
+
+    private JSONObject postCentral(JSONObject json) throws Exception {
+        TextView centralNote = new TextView(this);
+        centralNote.setText("Data destination is locked to EAP_Master Sheet. These admin settings only connect the app to the approved central backend.");
+        centralNote.setTextColor(GREEN_DARK);
+        centralNote.setTextSize(13);
+        centralNote.setTypeface(Typeface.DEFAULT_BOLD);
+        centralNote.setPadding(dp(2), dp(4), dp(2), dp(10));
+        syncCard.addView(centralNote);
+
+        SharedPreferences prefs = getSharedPreferences("sync_settings", MODE_PRIVATE);
+        String apiUrl = prefs.getString("api_url", "");
+        String apiToken = prefs.getString("api_token", "");
+
+        if (apiUrl == null || !apiUrl.startsWith("https://") ||
+                apiToken == null || apiToken.trim().isEmpty()) {
+            throw new Exception("Central sync settings are missing.");
+        }
+
+        json.put("token", apiToken.trim());
+
+        String body = "payload=" + URLEncoder.encode(json.toString(), "UTF-8");
+        byte[] data = body.getBytes(StandardCharsets.UTF_8);
+
+        HttpURLConnection conn = (HttpURLConnection) new URL(apiUrl.trim()).openConnection();
+        conn.setRequestMethod("POST");
+        conn.setConnectTimeout(20000);
+        conn.setReadTimeout(30000);
+        conn.setDoOutput(true);
+        conn.setInstanceFollowRedirects(true);
+        conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
+        conn.setFixedLengthStreamingMode(data.length);
+
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(data);
+        }
+
+        int code = conn.getResponseCode();
+        InputStream stream = code >= 200 && code < 400 ? conn.getInputStream() : conn.getErrorStream();
+        String response = readAll(stream);
+        conn.disconnect();
+
+        if (code < 200 || code >= 400) {
+            throw new Exception("Central server HTTP " + code);
+        }
+
+        return new JSONObject(response);
+    }
+
+    private String readAll(InputStream stream) throws Exception {
+        if (stream == null) return "";
+        StringBuilder sb = new StringBuilder();
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = br.readLine()) != null) sb.append(line);
+        }
+        return sb.toString();
     }
 
     private void showSuccessDialog(String applicantName, String totalSerial, String locationSerial) {
@@ -1085,7 +1210,7 @@ public class MainActivity extends Activity {
 
         page.addView(pageTitle("More"));
 
-        LinearLayout syncCard = createSectionCard(page, "Google Sync Settings");
+        LinearLayout syncCard = createSectionCard(page, "Central EAP Master Sync");
 
         SharedPreferences prefs = getSharedPreferences("sync_settings", MODE_PRIVATE);
         EditText url = createInput(prefs.getString("api_url", ""));
@@ -1095,8 +1220,8 @@ public class MainActivity extends Activity {
         token.setHint("API Token");
         token.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
 
-        syncCard.addView(fieldBlock("Apps Script Web App URL", url));
-        syncCard.addView(fieldBlock("API Token", token));
+        syncCard.addView(fieldBlock("Admin Apps Script Web App URL", url));
+        syncCard.addView(fieldBlock("Admin API Token", token));
 
         TextView pending = new TextView(this);
         pending.setTextColor(MUTED);
@@ -1141,7 +1266,10 @@ public class MainActivity extends Activity {
 
         TextView info = new TextView(this);
         info.setText("HAL EAP Registration\nVersion: " + appVersion() +
-                "\nPDF storage: Downloads / EAP Registrations\nOffline registration: Enabled");
+                "\nCentral data destination: EAP_Master Sheet only" +
+                "\nCentral serial control: Enabled" +
+                "\nPDF storage: Central Drive + local Downloads" +
+                "\nFinal submission requires central connection");
         info.setTextColor(TEXT);
         info.setTextSize(14);
         info.setLineSpacing(0, 1.25f);
@@ -1531,49 +1659,24 @@ public class MainActivity extends Activity {
     private void updateSerialPreview() {
         if (totalSerialView == null || locationSerialView == null) return;
 
-        SharedPreferences serialPrefs = getSharedPreferences("serial_counters_2026_v2", MODE_PRIVATE);
-
-        int totalSubmitted = serialPrefs.getInt("total_2026", 0);
-        int nextTotal = totalSubmitted + 1;
-
         setSummaryText(
                 totalSerialView,
-                "TOTAL APPLICATIONS",
-                String.valueOf(totalSubmitted),
-                "Next Serial",
-                "EAP/2026/" + formatSerialNumber(nextTotal));
+                "CENTRAL MASTER",
+                "LIVE",
+                "Serial Control",
+                "EAP_Master Sheet only");
 
-        if (projectLocationSpinner == null) {
-            setSummaryText(
-                    locationSerialView,
-                    "LOCATION APPLICATIONS",
-                    "0",
-                    "Next Serial",
-                    "Select location");
-            return;
-        }
-
-        String selected = selectedSpinner(projectLocationSpinner);
-        if (selected.isEmpty() || "Select".equals(selected)) {
-            setSummaryText(
-                    locationSerialView,
-                    "LOCATION APPLICATIONS",
-                    "0",
-                    "Next Serial",
-                    "Select HAL Project Location");
-            return;
-        }
-
-        String code = projectLocationCode(selected);
-        int submitted = serialPrefs.getInt("location_2026_" + code, 0);
-        int next = submitted + 1;
+        String selected = projectLocationSpinner == null ? "" : selectedSpinner(projectLocationSpinner);
+        String locationText = (selected.isEmpty() || "Select".equals(selected))
+                ? "Select HAL Project Location"
+                : projectPlace(selected) + " • Central serial on submit";
 
         setSummaryText(
                 locationSerialView,
-                "LOCATION APPLICATIONS",
-                String.valueOf(submitted),
-                "Next Serial",
-                "EAP/2026/" + code + "/" + formatSerialNumber(next));
+                "LOCATION CONTROL",
+                "LIVE",
+                "Central Monitoring",
+                locationText);
     }
 
     private void setSummaryText(TextView view, String heading, String count, String label, String serial) {

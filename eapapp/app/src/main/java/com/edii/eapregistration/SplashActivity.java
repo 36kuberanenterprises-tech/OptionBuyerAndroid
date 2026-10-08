@@ -171,6 +171,17 @@ public class SplashActivity extends Activity {
         footer.setAlpha(0f);
         root.addView(footer);
 
+        TextView developer = new TextView(this);
+        developer.setText("Designed and Developed by Ajay Rao\nEDII SRO Bengaluru");
+        developer.setTextColor(GREEN_DARK);
+        developer.setTextSize(10);
+        developer.setTypeface(Typeface.DEFAULT_BOLD);
+        developer.setGravity(Gravity.CENTER);
+        developer.setLineSpacing(0, 1.12f);
+        developer.setPadding(0, dp(12), 0, 0);
+        developer.setAlpha(0f);
+        root.addView(developer);
+
         LinearLayout spacerBottom = new LinearLayout(this);
         root.addView(spacerBottom, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 0, 0.75f));
@@ -209,7 +220,8 @@ public class SplashActivity extends Activity {
         partnerAnim.playTogether(
                 ObjectAnimator.ofFloat(partnerCard, View.ALPHA, 0f, 1f),
                 ObjectAnimator.ofFloat(partnerCard, View.TRANSLATION_Y, dp(20), 0f),
-                ObjectAnimator.ofFloat(footer, View.ALPHA, 0f, 1f)
+                ObjectAnimator.ofFloat(footer, View.ALPHA, 0f, 1f),
+                ObjectAnimator.ofFloat(developer, View.ALPHA, 0f, 1f)
         );
         partnerAnim.setDuration(460);
         partnerAnim.setStartDelay(960);

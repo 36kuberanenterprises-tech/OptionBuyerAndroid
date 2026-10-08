@@ -53,10 +53,17 @@ public class PdfGenerator {
         byte[] bytes = createPdfBytes(data);
 
         String cleanName = sanitize(data.optString("name", "Participant"));
-        String mobile = sanitize(data.optString("mobile", ""));
+        String place = sanitize(data.optString("place", data.optString("city", "Location")));
+        String locationSerial = sanitize(
+                data.optString("individualSerialNumber", "").replace("/", "-"));
         String stamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ENGLISH).format(new Date());
-        String fileName = "HAL_EAP_Registration_" + cleanName +
-                (mobile.isEmpty() ? "" : "_" + mobile) + "_" + stamp + ".pdf";
+
+        String fileName;
+        if (!locationSerial.isEmpty()) {
+            fileName = cleanName + "_" + place + "_" + locationSerial + ".pdf";
+        } else {
+            fileName = cleanName + "_" + place + "_" + stamp + ".pdf";
+        }
 
         String location = saveToDevice(context, bytes, fileName);
         String b64 = Base64.encodeToString(bytes, Base64.NO_WRAP);

@@ -785,14 +785,6 @@ public class MainActivity extends Activity {
     }
 
     private JSONObject postCentral(JSONObject json) throws Exception {
-        TextView centralNote = new TextView(this);
-        centralNote.setText("Data destination is locked to EAP_Master Sheet. These admin settings only connect the app to the approved central backend.");
-        centralNote.setTextColor(GREEN_DARK);
-        centralNote.setTextSize(13);
-        centralNote.setTypeface(Typeface.DEFAULT_BOLD);
-        centralNote.setPadding(dp(2), dp(4), dp(2), dp(10));
-        syncCard.addView(centralNote);
-
         SharedPreferences prefs = getSharedPreferences("sync_settings", MODE_PRIVATE);
         String apiUrl = prefs.getString("api_url", "");
         String apiToken = prefs.getString("api_token", "");
@@ -1212,6 +1204,14 @@ public class MainActivity extends Activity {
         page.addView(pageTitle("More"));
 
         LinearLayout syncCard = createSectionCard(page, "Central EAP Master Sync");
+
+        TextView centralNote = new TextView(this);
+        centralNote.setText("Data destination is locked to EAP_Master Sheet. These admin settings only connect the app to the approved central backend.");
+        centralNote.setTextColor(GREEN_DARK);
+        centralNote.setTextSize(13);
+        centralNote.setTypeface(Typeface.DEFAULT_BOLD);
+        centralNote.setPadding(dp(2), dp(4), dp(2), dp(10));
+        syncCard.addView(centralNote);
 
         SharedPreferences prefs = getSharedPreferences("sync_settings", MODE_PRIVATE);
         EditText url = createInput(prefs.getString("api_url", ""));

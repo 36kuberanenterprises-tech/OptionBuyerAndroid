@@ -274,7 +274,7 @@ function getOrCreateMasterSheet(ss) {
   const headers = [
     'Submitted At','Total Serial Number','Location Serial Number','Application Status','Sync Status',
     'HAL Project Location','Location Code','EAP Date','Applicant Name','Gender','Date of Birth','Age',
-    'Father / Husband / Mother Name','Village','Panchayat','City / Taluk','PIN Code','State',
+    'Father / Husband / Mother Name','Address','Panchayat','City / Taluk','PIN Code','State',
     'Mobile Number','Alternate Mobile','Email ID','Aadhaar (Masked)','Highest Educational Qualification',
     'Occupation','Individual Income','Category','Intention','Business Sector','MSDP Interest',
     'Candidate Photo','Signature','Final PDF','Editable Application','Application Folder','Remarks',
@@ -454,7 +454,7 @@ function createEditableApplication(payload, folder, totalSerial, locationSerial,
   body.appendParagraph('Date of Birth: ' + (payload.dob || ''));
   body.appendParagraph('Age: ' + (payload.ageOnEapDate || ''));
   body.appendParagraph('Father / Husband / Mother Name: ' + (payload.guardianName || ''));
-  body.appendParagraph('Village: ' + (payload.village || ''));
+  body.appendParagraph('Address: ' + (payload.village || ''));
   body.appendParagraph('Panchayat: ' + (payload.panchayat || ''));
   body.appendParagraph('City / Taluk: ' + (payload.city || projectPlace(payload.projectLocation || '')));
   body.appendParagraph('PIN Code: ' + (payload.pinCode || ''));

@@ -9,6 +9,7 @@ import android.app.DatePickerDialog;
 import android.app.job.JobInfo;
 import android.app.job.JobScheduler;
 import android.content.ComponentName;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.Intent;
@@ -19,6 +20,8 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.text.Editable;
@@ -652,25 +655,30 @@ public class MainActivity extends Activity {
             return;
         }
 
-        SharedPreferences syncPrefs = getSharedPreferences("sync_settings", MODE_PRIVATE);
-        String apiUrl = syncPrefs.getString("api_url", "");
-        String apiToken = syncPrefs.getString("api_token", "");
-        if (apiUrl == null || !apiUrl.startsWith("https://") ||
-                apiToken == null || apiToken.trim().isEmpty()) {
-            Toast.makeText(this,
-                    "Central EAP Master sync is not configured. Open More and complete Admin Sync Setup.",
-                    Toast.LENGTH_LONG).show();
+        final String requestId = UUID.randomUUID().toString();
+        final String projectLocation = selectedSpinner(projectLocationSpinner);
+        final String locationCode = projectLocationCode(projectLocation);
+
+        final JSONObject payload;
+        try {
+            payload = buildRegistrationPayload(
+                    requestId, projectLocation, locationCode,
+                    pin, mobile, altMobile, aadhaar);
+        } catch (Exception ex) {
+            Toast.makeText(this, "Unable to prepare registration.", Toast.LENGTH_LONG).show();
             return;
         }
 
         submitButton.setEnabled(false);
+
+        if (!isNetworkAvailable()) {
+            saveOfflinePending(payload, requestId,
+                    "No internet connection. Application saved on this phone.");
+            return;
+        }
+
         submitButton.setText("Getting Central Serial...");
         saveStatusView.setText("Connecting to EAP_Master Sheet...");
-
-        final String requestId = UUID.randomUUID().toString();
-        final String projectLocation = selectedSpinner(projectLocationSpinner);
-        final String locationCode = projectLocationCode(projectLocation);
-        final String applicantName = value(nameField);
 
         networkExecutor.execute(() -> {
             try {
@@ -679,109 +687,111 @@ public class MainActivity extends Activity {
                 request.put("clientRequestId", requestId);
                 request.put("projectLocation", projectLocation);
                 request.put("locationCode", locationCode);
-                request.put("name", applicantName);
+                request.put("name", payload.optString("name", ""));
 
                 JSONObject reservation = postCentral(request);
                 if (!reservation.optBoolean("success", false)) {
-                    throw new Exception(reservation.optString("message", "Central serial could not be reserved."));
+                    throw new Exception(reservation.optString(
+                            "message", "Central serial could not be reserved."));
                 }
 
-                runOnUiThread(() -> saveWithCentralReservation(
-                        reservation,
-                        requestId,
-                        projectLocation,
-                        locationCode,
-                        pin,
-                        mobile,
-                        altMobile,
-                        aadhaar
-                ));
+                runOnUiThread(() ->
+                        saveWithCentralReservation(reservation, payload, requestId));
             } catch (Exception ex) {
-                runOnUiThread(() -> {
-                    submitButton.setEnabled(true);
-                    submitButton.setText("Submit Application");
-                    saveStatusView.setText("Central sync unavailable: " + ex.getMessage());
-                    Toast.makeText(this,
-                            "Unable to connect to EAP_Master Sheet. Internet and central sync are required for final submission.",
-                            Toast.LENGTH_LONG).show();
-                });
+                runOnUiThread(() ->
+                        saveOfflinePending(
+                                payload,
+                                requestId,
+                                "Central connection unavailable. Saved safely in offline queue."));
             }
         });
     }
 
-    private void saveWithCentralReservation(
-            JSONObject reservation,
+    private JSONObject buildRegistrationPayload(
             String requestId,
             String projectLocation,
             String locationCode,
             String pin,
             String mobile,
             String altMobile,
-            String aadhaar) {
+            String aadhaar) throws Exception {
+
+        JSONObject payload = new JSONObject();
+        payload.put("action", "submitRegistration");
+        payload.put("totalSerialNumber", "");
+        payload.put("individualSerialNumber", "");
+        payload.put("totalApplicationCount", 0);
+        payload.put("locationApplicationCount", 0);
+        payload.put("locationCode", locationCode);
+
+        payload.put("eapDate", value(eapDateField));
+        payload.put("name", value(nameField));
+        payload.put("gender", selectedRadio(genderGroup));
+        payload.put("dob", value(dobField));
+        payload.put("ageOnEapDate", value(ageField));
+        payload.put("guardianName", value(guardianNameField));
+
+        payload.put("village", value(villageField));
+        payload.put("panchayat", value(panchayatField));
+        payload.put("block", "");
+        payload.put("city", projectPlace(projectLocation));
+        payload.put("pinCode", pin);
+        payload.put("state", "Karnataka");
+        payload.put("projectLocation", projectLocation);
+        payload.put("place", projectPlace(projectLocation));
+        payload.put("fullAddress", buildFullAddress(
+                value(villageField),
+                value(panchayatField),
+                projectLocation,
+                "Karnataka",
+                pin));
+
+        payload.put("mobile", mobile);
+        payload.put("alternateMobile", altMobile);
+        payload.put("email", value(emailField));
+        payload.put("idType", "Aadhaar");
+        payload.put("idNumber", aadhaar);
+        payload.put("education", value(educationField));
+        payload.put("occupation", value(occupationField));
+        payload.put("individualIncome", value(incomeField));
+        payload.put("category", selectedSpinner(categorySpinner));
+        payload.put("intention", selectedRadio(intentionGroup));
+        payload.put("sector", selectedRadio(sectorGroup));
+        payload.put("sectors", selectedRadio(sectorGroup));
+        payload.put("msdpInterest", selectedRadio(msdpGroup));
+        payload.put("photoBase64", photoBase64);
+        payload.put("signatureType", "Photo");
+        payload.put("signatureBase64", signaturePhotoBase64);
+        payload.put("declarationAccepted", true);
+        payload.put("clientRequestId", requestId);
+        return payload;
+    }
+
+    private void saveWithCentralReservation(
+            JSONObject reservation,
+            JSONObject payload,
+            String requestId) {
 
         submitButton.setText("Saving...");
         try {
             String totalSerial = reservation.optString("totalSerialNumber", "");
             String locationSerial = reservation.optString("individualSerialNumber", "");
-            int totalNumber = reservation.optInt("totalApplicationCount", 0);
-            int locationNumber = reservation.optInt("locationApplicationCount", 0);
 
             if (totalSerial.isEmpty() || locationSerial.isEmpty()) {
                 throw new Exception("Central serial response is incomplete.");
             }
 
-            JSONObject payload = new JSONObject();
-            payload.put("action", "submitRegistration");
             payload.put("totalSerialNumber", totalSerial);
             payload.put("individualSerialNumber", locationSerial);
-            payload.put("totalApplicationCount", totalNumber);
-            payload.put("locationApplicationCount", locationNumber);
-            payload.put("locationCode", locationCode);
-
-            payload.put("eapDate", value(eapDateField));
-            payload.put("name", value(nameField));
-            payload.put("gender", selectedRadio(genderGroup));
-            payload.put("dob", value(dobField));
-            payload.put("ageOnEapDate", value(ageField));
-            payload.put("guardianName", value(guardianNameField));
-
-            payload.put("village", value(villageField));
-            payload.put("panchayat", value(panchayatField));
-            payload.put("block", "");
-            payload.put("city", projectPlace(projectLocation));
-            payload.put("pinCode", pin);
-            payload.put("state", "Karnataka");
-            payload.put("projectLocation", projectLocation);
-            payload.put("place", projectPlace(projectLocation));
-            payload.put("fullAddress", buildFullAddress(
-                    value(villageField),
-                    value(panchayatField),
-                    projectLocation,
-                    "Karnataka",
-                    pin));
-
-            payload.put("mobile", mobile);
-            payload.put("alternateMobile", altMobile);
-            payload.put("email", value(emailField));
-            payload.put("idType", "Aadhaar");
-            payload.put("idNumber", aadhaar);
-            payload.put("education", value(educationField));
-            payload.put("occupation", value(occupationField));
-            payload.put("individualIncome", value(incomeField));
-            payload.put("category", selectedSpinner(categorySpinner));
-            payload.put("intention", selectedRadio(intentionGroup));
-            payload.put("sector", selectedRadio(sectorGroup));
-            payload.put("sectors", selectedRadio(sectorGroup));
-            payload.put("msdpInterest", selectedRadio(msdpGroup));
-            payload.put("photoBase64", photoBase64);
-            payload.put("signatureType", "Photo");
-            payload.put("signatureBase64", signaturePhotoBase64);
-            payload.put("declarationAccepted", true);
-            payload.put("clientRequestId", requestId);
+            payload.put("totalApplicationCount",
+                    reservation.optInt("totalApplicationCount", 0));
+            payload.put("locationApplicationCount",
+                    reservation.optInt("locationApplicationCount", 0));
 
             PdfGenerator.Result pdf = PdfGenerator.createAndSave(this, payload, requestId);
             payload.put("pdfFileName", pdf.fileName);
             payload.put("pdfBase64", pdf.base64);
+            payload.put("localPdfLocation", pdf.savedLocation);
 
             RegistrationStore store = new RegistrationStore(this);
             store.savePending(requestId, payload.toString());
@@ -789,19 +799,55 @@ public class MainActivity extends Activity {
             scheduleSync();
             updateSerialPreview();
 
-            saveStatusView.setText("Saved locally and queued for EAP_Master Sheet. PDF: " +
+            saveStatusView.setText("Saved locally. Central sync queued. PDF: " +
                     pdf.savedLocation + " | Pending sync: " + store.pendingCount());
 
             showSuccessDialog(
-                    value(nameField),
+                    payload.optString("name", "Applicant"),
                     totalSerial,
                     locationSerial
             );
         } catch (Exception ex) {
+            saveOfflinePending(payload, requestId,
+                    "Could not create final PDF now. Application saved in offline queue.");
+        }
+    }
+
+    private void saveOfflinePending(
+            JSONObject payload,
+            String requestId,
+            String message) {
+
+        try {
+            RegistrationStore store = new RegistrationStore(this);
+            store.savePending(requestId, payload.toString());
+            scheduleSync();
+            updateSerialPreview();
+
+            int pending = store.pendingCount();
+            saveStatusView.setText(message + " Pending sync: " + pending);
+
+            showQueuedDialog(
+                    payload.optString("name", "Applicant"),
+                    pending);
+        } catch (Exception ex) {
             submitButton.setEnabled(true);
             submitButton.setText("Submit Application");
-            saveStatusView.setText("Unable to save: " + ex.getMessage());
-            Toast.makeText(this, "Unable to save registration.", Toast.LENGTH_LONG).show();
+            saveStatusView.setText("Unable to save locally: " + ex.getMessage());
+            Toast.makeText(this,
+                    "Unable to save this application on the phone.",
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private boolean isNetworkAvailable() {
+        try {
+            ConnectivityManager cm =
+                    (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            NetworkInfo info = cm == null ? null : cm.getActiveNetworkInfo();
+            return info != null && info.isConnected();
+        } catch (Exception ignored) {
+            return false;
         }
     }
 
@@ -1023,6 +1069,83 @@ public class MainActivity extends Activity {
         dialog.show();
     }
 
+    private void showQueuedDialog(String applicantName, int pendingCount) {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setGravity(Gravity.CENTER_HORIZONTAL);
+        box.setPadding(dp(24), dp(24), dp(24), dp(20));
+        box.setBackground(rounded(Color.WHITE, dp(22), 0, 0));
+
+        TextView check = new TextView(this);
+        check.setText("✓");
+        check.setGravity(Gravity.CENTER);
+        check.setTextSize(38);
+        check.setTypeface(Typeface.DEFAULT_BOLD);
+        check.setTextColor(Color.WHITE);
+        check.setBackground(rounded(GREEN, dp(46), 0, 0));
+        box.addView(check, new LinearLayout.LayoutParams(dp(82), dp(82)));
+
+        TextView title = new TextView(this);
+        title.setText(applicantName);
+        title.setTextColor(GREEN_DARK);
+        title.setTextSize(22);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setGravity(Gravity.CENTER);
+        title.setPadding(0, dp(14), 0, dp(4));
+        box.addView(title);
+
+        TextView message = new TextView(this);
+        message.setText("Application saved on this phone");
+        message.setTextColor(TEXT);
+        message.setTextSize(16);
+        message.setTypeface(Typeface.DEFAULT_BOLD);
+        message.setGravity(Gravity.CENTER);
+        box.addView(message);
+
+        TextView details = new TextView(this);
+        details.setText("Central serial and final PDF will be created automatically when internet is available.\n\nPending applications on this phone: " + pendingCount);
+        details.setTextColor(MUTED);
+        details.setTextSize(13);
+        details.setGravity(Gravity.CENTER);
+        details.setPadding(dp(4), dp(8), dp(4), dp(16));
+        box.addView(details);
+
+        Button next = makeButton("Next Applicant", true);
+        box.addView(next, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        Button applications = makeButton("View Pending Applications", false);
+        LinearLayout.LayoutParams appLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        appLp.setMargins(0, dp(8), 0, 0);
+        box.addView(applications, appLp);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(box)
+                .setCancelable(false)
+                .create();
+
+        next.setOnClickListener(v -> {
+            dialog.dismiss();
+            clearForNextApplicant();
+            submitButton.setEnabled(true);
+            submitButton.setText("Submit Application");
+            updateSerialPreview();
+            homeScroll.post(() -> homeScroll.fullScroll(View.FOCUS_UP));
+        });
+
+        applications.setOnClickListener(v -> {
+            dialog.dismiss();
+            submitButton.setEnabled(true);
+            submitButton.setText("Submit Application");
+            showApplications();
+        });
+
+        dialog.show();
+    }
+
     private void clearForNextApplicant() {
         nameField.setText("");
         genderGroup.clearCheck();
@@ -1149,6 +1272,7 @@ public class MainActivity extends Activity {
                 String mobile = data.optString("mobile", "");
                 String totalSerial = data.optString("totalSerialNumber", "");
                 String locationSerial = data.optString("individualSerialNumber", "");
+                if (totalSerial.isEmpty()) totalSerial = "Pending central serial";
 
                 boolean isToday = record.createdAt >= todayStart;
                 boolean isPending = !"SYNCED".equals(record.status);
@@ -1520,10 +1644,16 @@ public class MainActivity extends Activity {
 
     private void launchCamera(int requestCode) {
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        if (intent.resolveActivity(getPackageManager()) != null) {
+        try {
             startActivityForResult(intent, requestCode);
-        } else {
-            Toast.makeText(this, "Camera is not available.", Toast.LENGTH_LONG).show();
+        } catch (ActivityNotFoundException ex) {
+            Toast.makeText(this,
+                    "Camera app could not be opened. Please use Upload Photo, or check Camera app settings.",
+                    Toast.LENGTH_LONG).show();
+        } catch (Exception ex) {
+            Toast.makeText(this,
+                    "Unable to open camera. Please use Upload Photo.",
+                    Toast.LENGTH_LONG).show();
         }
     }
 
@@ -1706,24 +1836,138 @@ public class MainActivity extends Activity {
     private void updateSerialPreview() {
         if (totalSerialView == null || locationSerialView == null) return;
 
+        RegistrationStore store = new RegistrationStore(this);
+        int pending = store.pendingCount();
+
+        SharedPreferences statusPrefs =
+                getSharedPreferences("central_status_cache", MODE_PRIVATE);
+        int totalCount = statusPrefs.getInt("total_count", -1);
+        String nextTotal = statusPrefs.getString("next_total", "");
+
+        String selected = projectLocationSpinner == null
+                ? "" : selectedSpinner(projectLocationSpinner);
+        String code = (selected.isEmpty() || "Select".equals(selected))
+                ? "" : projectLocationCode(selected);
+
+        String totalCountText = totalCount >= 0 ? String.valueOf(totalCount) : "—";
+        String totalNextText = !nextTotal.isEmpty()
+                ? "Next: " + nextTotal
+                : (isNetworkAvailable() ? "Updating from Master Sheet..." : "Connect to update");
+
         setSummaryText(
                 totalSerialView,
-                "CENTRAL MASTER",
-                "LIVE",
-                "Serial Control",
-                "EAP_Master Sheet only");
+                "TOTAL APPLICATIONS",
+                totalCountText,
+                "Pending on this phone: " + pending,
+                totalNextText);
 
-        String selected = projectLocationSpinner == null ? "" : selectedSpinner(projectLocationSpinner);
-        String locationText = (selected.isEmpty() || "Select".equals(selected))
-                ? "Select HAL Project Location"
-                : projectPlace(selected) + " • Central serial on submit";
+        if (code.isEmpty()) {
+            setSummaryText(
+                    locationSerialView,
+                    "LOCATION APPLICATIONS",
+                    "—",
+                    "Select HAL Project Location",
+                    "Location serial assigned centrally");
+        } else {
+            int locationCount = statusPrefs.getInt("count_" + code, -1);
+            String nextLocation = statusPrefs.getString("next_" + code, "");
+            setSummaryText(
+                    locationSerialView,
+                    "LOCATION APPLICATIONS",
+                    locationCount >= 0 ? String.valueOf(locationCount) : "—",
+                    projectPlace(selected),
+                    !nextLocation.isEmpty()
+                            ? "Next: " + nextLocation
+                            : (isNetworkAvailable()
+                                ? "Updating from Master Sheet..."
+                                : "Assigned when internet returns"));
+        }
+
+        refreshCentralStatusAsync(selected, code);
+    }
+
+    private void refreshCentralStatusAsync(String projectLocation, String locationCode) {
+        if (!isNetworkAvailable()) return;
+
+        networkExecutor.execute(() -> {
+            try {
+                JSONObject request = new JSONObject();
+                request.put("action", "getStatus");
+                request.put("projectLocation",
+                        (projectLocation == null || "Select".equals(projectLocation))
+                                ? "" : projectLocation);
+                request.put("locationCode",
+                        locationCode == null || locationCode.isEmpty()
+                                ? "NA" : locationCode);
+
+                JSONObject result = postCentral(request);
+                if (!result.optBoolean("success", false)) return;
+
+                SharedPreferences.Editor editor =
+                        getSharedPreferences("central_status_cache", MODE_PRIVATE).edit();
+                editor.putInt("total_count",
+                        result.optInt("totalApplicationCount", 0));
+                editor.putString("next_total",
+                        result.optString("nextTotalSerial", ""));
+
+                if (locationCode != null && !locationCode.isEmpty()) {
+                    editor.putInt("count_" + locationCode,
+                            result.optInt("locationApplicationCount", 0));
+                    editor.putString("next_" + locationCode,
+                            result.optString("nextLocationSerial", ""));
+                }
+                editor.apply();
+
+                runOnUiThread(() -> {
+                    if (totalSerialView != null && locationSerialView != null) {
+                        updateSerialPreviewFromCacheOnly();
+                    }
+                });
+            } catch (Exception ignored) {}
+        });
+    }
+
+    private void updateSerialPreviewFromCacheOnly() {
+        RegistrationStore store = new RegistrationStore(this);
+        int pending = store.pendingCount();
+        SharedPreferences statusPrefs =
+                getSharedPreferences("central_status_cache", MODE_PRIVATE);
+
+        int totalCount = statusPrefs.getInt("total_count", -1);
+        String nextTotal = statusPrefs.getString("next_total", "");
 
         setSummaryText(
+                totalSerialView,
+                "TOTAL APPLICATIONS",
+                totalCount >= 0 ? String.valueOf(totalCount) : "—",
+                "Pending on this phone: " + pending,
+                !nextTotal.isEmpty() ? "Next: " + nextTotal : "Master Sheet controlled");
+
+        String selected = projectLocationSpinner == null
+                ? "" : selectedSpinner(projectLocationSpinner);
+        String code = (selected.isEmpty() || "Select".equals(selected))
+                ? "" : projectLocationCode(selected);
+
+        if (code.isEmpty()) {
+            setSummaryText(
+                    locationSerialView,
+                    "LOCATION APPLICATIONS",
+                    "—",
+                    "Select HAL Project Location",
+                    "Location serial assigned centrally");
+            return;
+        }
+
+        int locationCount = statusPrefs.getInt("count_" + code, -1);
+        String nextLocation = statusPrefs.getString("next_" + code, "");
+        setSummaryText(
                 locationSerialView,
-                "LOCATION CONTROL",
-                "LIVE",
-                "Central Monitoring",
-                locationText);
+                "LOCATION APPLICATIONS",
+                locationCount >= 0 ? String.valueOf(locationCount) : "—",
+                projectPlace(selected),
+                !nextLocation.isEmpty()
+                        ? "Next: " + nextLocation
+                        : "Assigned centrally on sync");
     }
 
     private void setSummaryText(TextView view, String heading, String count, String label, String serial) {

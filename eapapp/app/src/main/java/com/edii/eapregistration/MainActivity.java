@@ -412,7 +412,7 @@ public class MainActivity extends Activity {
         stateField.setBackground(rounded(Color.rgb(242, 245, 242), dp(10), 1, BORDER));
 
         addPair(location,
-                fieldBlock("Village *", villageField),
+                fieldBlock("Address *", villageField),
                 fieldBlock("Panchayat *", panchayatField));
         addPair(location,
                 fieldBlock("City / Taluk (Auto)", cityField),

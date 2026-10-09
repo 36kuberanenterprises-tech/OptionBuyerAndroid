@@ -143,6 +143,13 @@ public class RegistrationStore extends SQLiteOpenHelper {
         }
     }
 
+    public void updatePayload(long id, String payload) {
+        ContentValues v = new ContentValues();
+        v.put("payload", payload);
+        getWritableDatabase().update(
+                "registrations", v, "id=?", new String[]{String.valueOf(id)});
+    }
+
     public void markSynced(long id) {
         ContentValues v = new ContentValues();
         v.put("sync_status", "SYNCED");

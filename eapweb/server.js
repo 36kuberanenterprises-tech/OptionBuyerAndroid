@@ -25,7 +25,7 @@ app.post('/api/status', async (req,res) => {
       action:'getStatus',
       projectLocation:req.body.projectLocation || '',
       locationCode:req.body.locationCode || 'NA'
-    });
+    }, req.get('x-eap-token') || '');
     res.status(result.success ? 200 : 400).json(result);
   } catch (e) {
     res.status(503).json({success:false,message:e.message || 'Central service unavailable'});
@@ -50,7 +50,7 @@ app.post('/api/submit', async (req,res) => {
         projectLocation:payload.projectLocation,
         locationCode:payload.locationCode,
         name:payload.name
-      });
+      }, req.get('x-eap-token') || '');
       if (!reservation.success) return res.status(409).json(reservation);
       totalSerial = reservation.totalSerialNumber;
       locationSerial = reservation.individualSerialNumber;
@@ -65,7 +65,7 @@ app.post('/api/submit', async (req,res) => {
     payload.pdfFileName = makePdfFileName(payload);
     payload.action = 'submitRegistration';
 
-    const result = await callAppsScript(payload);
+    const result = await callAppsScript(payload, req.get('x-eap-token') || '');
     if (!result.success) return res.status(400).json(result);
 
     res.json({
@@ -82,9 +82,10 @@ app.post('/api/submit', async (req,res) => {
 app.get('*', (_req,res) => res.sendFile(path.join(__dirname,'public','index.html')));
 app.listen(PORT, () => console.log('HAL EAP web app running on', PORT));
 
-async function callAppsScript(payload) {
-  if (!APPS_SCRIPT_URL || !API_TOKEN) throw new Error('Central EAP backend is not configured.');
-  const body = new URLSearchParams({payload:JSON.stringify({...payload,token:API_TOKEN})});
+async function callAppsScript(payload, clientToken='') {
+  const token = API_TOKEN || clientToken;
+  if (!APPS_SCRIPT_URL || !token) throw new Error('Central EAP token is not configured on this device.');
+  const body = new URLSearchParams({payload:JSON.stringify({...payload,token})});
   const response = await fetch(APPS_SCRIPT_URL, {
     method:'POST',
     headers:{'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8'},

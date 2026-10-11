@@ -80,7 +80,21 @@ app.post('/api/submit', async (req,res) => {
 });
 
 app.get('*', (_req,res) => res.sendFile(path.join(__dirname,'public','index.html')));
-app.listen(PORT, () => console.log('HAL EAP web app running on', PORT));
+app.listen(PORT, () => {
+  console.log('HAL EAP web app running on', PORT);
+  setTimeout(async () => {
+    try {
+      const check = await callAppsScript({
+        action:'getStatus',
+        projectLocation:'Kolar | Mulbagal',
+        locationCode:'K-M'
+      });
+      console.log('Central backend check:', check && check.success ? 'CONNECTED' : 'FAILED');
+    } catch (e) {
+      console.error('Central backend check: FAILED -', e.message);
+    }
+  }, 1500);
+});
 
 async function callAppsScript(payload, clientToken='') {
   const token = API_TOKEN || clientToken;

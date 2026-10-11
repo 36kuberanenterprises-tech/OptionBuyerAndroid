@@ -9,7 +9,6 @@ let photoBase64='',signatureBase64='',installPrompt=null,dbPromise=null;
 document.addEventListener('DOMContentLoaded',init);
 
 async function init(){
-  ensureToken();
   $('eapDate').value=localISODate(new Date());
   $('projectLocation').addEventListener('change',()=>{ $('city').value=placeOf($('projectLocation').value); refreshStatus(); });
   $('dob').addEventListener('change',updateAge); $('eapDate').addEventListener('change',updateAge);
@@ -45,8 +44,4 @@ async function save(r){const db=await openDb();return new Promise((ok,bad)=>{con
 async function installApp(){if(!installPrompt)return;installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;$('installBtn').hidden=true}
 
 function getToken(){return localStorage.getItem('eap_api_token')||''}
-function ensureToken(){
-  if(getToken()) return;
-  const t=prompt('One-time setup: Enter the EAP Central API Token used in Apps Script.');
-  if(t&&t.trim()) localStorage.setItem('eap_api_token',t.trim());
-}
+function ensureToken(){}

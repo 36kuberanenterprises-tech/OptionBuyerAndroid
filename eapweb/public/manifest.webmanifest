@@ -1,0 +1,10 @@
+{
+  "name":"HAL EAP Registration",
+  "short_name":"EAP Registration",
+  "description":"HAL EAP field registration and central synchronization",
+  "start_url":"/",
+  "display":"standalone",
+  "background_color":"#ffffff",
+  "theme_color":"#299932",
+  "icons":[{"src":"/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}

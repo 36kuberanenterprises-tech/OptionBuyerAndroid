@@ -32,3 +32,16 @@
   color:#fff;
 }
 .sectionhead .outline:hover{background:#102f4e}
+
+/* v2.7 high contrast institutional typography */
+.hero h1{color:#fff!important;font-weight:850;text-shadow:0 1px 1px rgba(0,0,0,.08)}
+.hero .muted{color:#f0f7f2!important;font-weight:700}
+.card h2{color:#0b4f2d!important;font-weight:850;background:#eaf6ee!important;border-bottom:1px solid #cfe1d5}
+label,legend{color:#18271e!important;font-weight:750}
+.sum small{color:#0b4f2d!important;font-weight:900}
+.sum strong{color:#142219!important;font-weight:850}
+.sum span{color:#0f6b38!important;font-weight:800}
+.sectionhead h2{color:#0b4f2d!important;font-weight:850!important}
+.top .titles b{color:#0b4f2d!important;font-weight:900}
+.top .titles span{color:#1b2a20!important;font-weight:800}
+footer b,.developer-credit b,.footer-credit b{color:#0b4f2d!important}

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>FullScreen</key><true/>
+      <key>IgnoreManifestScope</key><false/>
+      <key>IsRemovable</key><true/>
+      <key>Label</key><string>HAL EAP Registration</string>
+      <key>PayloadDescription</key><string>Installs the HAL EAP Registration web app on the iPhone or iPad Home Screen.</string>
+      <key>PayloadDisplayName</key><string>HAL EAP Registration</string>
+      <key>PayloadIdentifier</key><string>org.ediindia.haleap.webclip</string>
+      <key>PayloadType</key><string>com.apple.webClip.managed</string>
+      <key>PayloadUUID</key><string>8B49DA21-71BC-4A20-9B2B-7EA01F699A21</string>
+      <key>PayloadVersion</key><integer>1</integer>
+      <key>Precomposed</key><false/>
+      <key>URL</key><string>https://hal-eap-registration-web.onrender.com/?ios=installed</string>
+    </dict>
+  </array>
+  <key>PayloadDescription</key><string>HAL EAP Registration iOS Home Screen installer.</string>
+  <key>PayloadDisplayName</key><string>HAL EAP Registration Installer</string>
+  <key>PayloadIdentifier</key><string>org.ediindia.haleap.profile</string>
+  <key>PayloadOrganization</key><string>Entrepreneurship Development Institute of India</string>
+  <key>PayloadRemovalDisallowed</key><false/>
+  <key>PayloadType</key><string>Configuration</string>
+  <key>PayloadUUID</key><string>3D2CC22E-3C88-4D0B-9A0F-6291D7E3AC62</string>
+  <key>PayloadVersion</key><integer>1</integer>
+</dict>
+</plist>

@@ -8,6 +8,13 @@ const PORT = process.env.PORT || 10000;
 const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_URL || '';
 const API_TOKEN = process.env.API_TOKEN || '';
 
+app.get('/downloads/HAL_EAP_Registration_iOS.mobileconfig',(req,res)=>{
+  const file=path.join(__dirname,'public','downloads','HAL_EAP_Registration_iOS.mobileconfig');
+  res.setHeader('Content-Type','application/x-apple-aspen-config');
+  res.setHeader('Content-Disposition','attachment; filename="HAL_EAP_Registration_iOS.mobileconfig"');
+  res.sendFile(file);
+});
+
 app.use(express.json({limit:'35mb'}));
 app.use(express.static(path.join(__dirname,'public'), {
   setHeaders(res, filePath) {

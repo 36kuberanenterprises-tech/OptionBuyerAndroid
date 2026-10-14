@@ -36,7 +36,7 @@
         <h2>Android</h2>
         <p>Download the latest HAL EAP Registration APK for Android phones.</p>
         <a class="btn" href="/downloads/HAL_EAP_Registration_Android_latest.apk" download>Download Android APK</a>
-        <div class="note">Version 2.11 • Latest synchronized Android build</div>
+        <div class="note" id="androidVersion">Latest synchronized Android build</div>
       </section>
 
       <section class="card">
@@ -50,5 +50,15 @@
 
     <a class="back" href="/">← Back to EAP Registration</a><div style="margin:24px auto 0;padding-top:14px;border-top:1px solid var(--line);text-align:center;color:var(--muted);font-size:11px">Designed and Developed by <b style="color:var(--gd)">Ajay Rao</b>, EDII SRO Bengaluru.</div>
   </main>
+  <script>
+    fetch('/downloads/android-version.json',{cache:'no-store'})
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{
+        if(d&&d.version){
+          document.getElementById('androidVersion').textContent='Version '+d.version+' • Latest synchronized Android build';
+        }
+      })
+      .catch(()=>{});
+  </script>
 </body>
 </html>

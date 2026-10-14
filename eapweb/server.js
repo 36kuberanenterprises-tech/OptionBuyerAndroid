@@ -190,6 +190,51 @@ function buildPdf(d) {
         }
         draw(value,x,baseline,size,name);
       };
+      const wrapLines=(text,maxWidth,size,name=regular)=>{
+        const value=clean(text);
+        if(!value)return [''];
+        font(name,size);
+        const words=value.split(/\s+/);
+        const lines=[];
+        let current='';
+        for(const word of words){
+          const candidate=current?current+' '+word:word;
+          if(doc.widthOfString(candidate)<=maxWidth){
+            current=candidate;
+          }else{
+            if(current){lines.push(current);current='';}
+            let remaining=word;
+            while(remaining && doc.widthOfString(remaining)>maxWidth){
+              let take=remaining.length;
+              while(take>1 && doc.widthOfString(remaining.slice(0,take))>maxWidth)take--;
+              lines.push(remaining.slice(0,take));
+              remaining=remaining.slice(take);
+            }
+            current=remaining;
+          }
+        }
+        if(current)lines.push(current);
+        return lines.length?lines:[value];
+      };
+      const wrapped=(text,x,baseline,maxWidth,startSize=9.4,minSize=6.8,maxLines=3,lineHeight=10,name=regular)=>{
+        let size=startSize,lines=wrapLines(text,maxWidth,size,name);
+        while(lines.length>maxLines && size>minSize){
+          size-=0.25;
+          lines=wrapLines(text,maxWidth,size,name);
+        }
+        if(lines.length>maxLines){
+          const kept=lines.slice(0,maxLines);
+          kept[maxLines-1]=lines.slice(maxLines-1).join(' ');
+          lines=kept;
+          while(doc.widthOfString(lines[maxLines-1])>maxWidth && size>minSize){
+            size-=0.25;font(name,size);
+          }
+        }
+        font(name,size);
+        const count=Math.min(maxLines,Math.max(1,lines.length));
+        for(let i=0;i<count;i++)draw(lines[i],x,baseline+(i*lineHeight),size,name);
+        return count;
+      };
       const box=(x,y,size,checked)=>{
         doc.lineWidth(1).strokeColor('#000').rect(x,y,size,size).stroke();
         if(checked){
@@ -250,48 +295,72 @@ function buildPdf(d) {
       draw('1)',89.3,189,12,regular); draw('Full Name:',143.3,189,12,regular); fit(d.name,216,189,265,10.2,7.5,regular);
       draw('2)',89.3,215,12,regular); draw('Gender:',143.3,215,12,regular); fit(d.gender,195,215,285,10.2,8,regular);
       draw('3)',89.3,237,12,regular); draw('Date of Birth:',143.3,237,12,regular); fit(d.dob,229,237,250,10.2,8,regular);
-      draw('4)',89.3,259,12,regular); draw(relationLabel(),143.3,259,12,regular); fit(d.guardianName,365,259,116,10.2,7,regular);
-      draw('5)',89.3,281,12,regular); draw('Full Address:',143.3,281,12,regular); fit(d.fullAddress||'',228,281,252,10.2,6.8,regular);
-      draw('6)',89.3,303,12,regular); draw('Mobile Phone:',143.3,303,12,regular); fit(d.mobile,232,303,247,10.2,8,regular);
-      draw('7)',89.3,325,12,regular); draw('Alternative Phone No.:',143.3,325,12,regular); fit(d.alternateMobile,280,325,200,10.2,8,regular);
-      draw('8)',89.3,347,12,regular); draw('Email ID:',143.3,347,12,regular); fit(d.email,204,347,276,10.2,7.5,regular);
-      draw('9)',89.3,369,12,regular); draw('Aadhar No.:',143.3,369,12,regular); fit(d.idNumber,219,369,260,10.2,8,regular);
-      draw('10)',89.3,392,12,regular); draw('Highest Educational Qualification:',143.3,392,12,regular); fit(d.education,351,392,128,10.2,6.8,regular);
-      draw('11)',89.3,414,12,regular); draw('Occupation:',143.3,414,12,regular); fit(d.occupation,219,414,260,10.2,8,regular);
-      draw('12)',89.3,436,12,regular); draw('Income (Individual):',143.3,436,12,regular); fit(d.individualIncome,263,436,216,10.2,8,regular);
+      const guardianText=relationLabel();
+      draw('4)',89.3,259,12,regular);
+      draw(guardianText,143.3,259,12,regular);
+      font(regular,12);
+      const guardianValueX=Math.min(350,143.3+doc.widthOfString(guardianText)+8);
+      fit(d.guardianName,guardianValueX,259,480-guardianValueX,10.2,7,regular);
 
-      draw('13)',89.3,463,12,regular); draw('Category:',143.3,463,12,regular);
+      draw('5)',89.3,281,12,regular);
+      draw('Full Address:',143.3,281,12,regular);
+      const addressLines=wrapped(d.fullAddress||'',228,281,252,9.4,6.8,3,10,regular);
+      const addressShift=Math.max(0,addressLines-1)*9;
+
+      const y6=303+addressShift,y7=325+addressShift,y8=347+addressShift,y9=369+addressShift;
+      const y10=392+addressShift,y11=414+addressShift,y12=436+addressShift,y13=463+addressShift;
+
+      draw('6)',89.3,y6,12,regular); draw('Mobile Phone:',143.3,y6,12,regular); fit(d.mobile,232,y6,247,10.2,8,regular);
+      draw('7)',89.3,y7,12,regular); draw('Alternative Phone No.:',143.3,y7,12,regular); fit(d.alternateMobile,280,y7,200,10.2,8,regular);
+      draw('8)',89.3,y8,12,regular); draw('Email ID:',143.3,y8,12,regular); fit(d.email,204,y8,276,10.2,7.5,regular);
+      draw('9)',89.3,y9,12,regular); draw('Aadhar No.:',143.3,y9,12,regular); fit(d.idNumber,219,y9,260,10.2,8,regular);
+      draw('10)',89.3,y10,12,regular); draw('Highest Educational Qualification:',143.3,y10,12,regular); fit(d.education,351,y10,128,10.2,6.8,regular);
+      draw('11)',89.3,y11,12,regular); draw('Occupation:',143.3,y11,12,regular); fit(d.occupation,219,y11,260,10.2,8,regular);
+      draw('12)',89.3,y12,12,regular); draw('Income (Individual):',143.3,y12,12,regular); fit(d.individualIncome,263,y12,216,10.2,8,regular);
+
+      draw('13)',89.3,y13,12,regular); draw('Category:',143.3,y13,12,regular);
       const category=clean(d.category).toUpperCase();
-      checkOption(202.61,449.6,'GEN',216.05,463,category==='GEN');
-      checkOption(247.01,449.6,'EWS',261.89,463,category==='EWS');
-      checkOption(293.83,449.6,'SC',308.59,463,category==='SC');
-      checkOption(329.23,449.6,'ST',343.99,463,category==='ST');
-      checkOption(363.19,449.6,'OBC',378.10,463,category==='OBC');
-      checkOption(409.30,449.6,'MINORITY',424.06,463,category==='MINORITY');
+      checkOption(202.61,449.6+addressShift,'GEN',216.05,y13,category==='GEN');
+      checkOption(247.01,449.6+addressShift,'EWS',261.89,y13,category==='EWS');
+      checkOption(293.83,449.6+addressShift,'SC',308.59,y13,category==='SC');
+      checkOption(329.23,449.6+addressShift,'ST',343.99,y13,category==='ST');
+      checkOption(363.19,449.6+addressShift,'OBC',378.10,y13,category==='OBC');
+      checkOption(409.30,449.6+addressShift,'MINORITY',424.06,y13,category==='MINORITY');
 
-      draw('14)',89.3,486,12,regular); draw('Intention for taking part in the EAP:',143.3,486,12,regular);
+      const intentionY=486+addressShift;
+      draw('14)',89.3,intentionY,12,regular); draw('Intention for taking part in the EAP:',143.3,intentionY,12,regular);
       const intention=clean(d.intention).toLowerCase().replace(/[^a-z]/g,'');
-      box(364.5,477.2,12,intention==='employment'); draw('a) Employment',382.18,486,12,regular);
-      box(363.75,490.73,12,intention==='selfemployment'); draw('b) Self-employment',383.14,500,12,regular);
+      box(364.5,477.2+addressShift,12,intention==='employment'); draw('a) Employment',382.18,intentionY,12,regular);
+      box(363.75,490.73+addressShift,12,intention==='selfemployment'); draw('b) Self-employment',383.14,500+addressShift,12,regular);
 
-      draw('13)',86.18,523,12,regular); draw('In which sector would you like to start business?',143.06,523,12,regular);
+      const sectorY=523+addressShift; draw('13)',86.18,sectorY,12,regular); draw('In which sector would you like to start business?',143.06,sectorY,12,regular);
       const sector=clean(d.sector||d.sectors).toLowerCase().replace(/[^a-z]/g,'');
       box(166.3,537,12,sector==='fashiontechnology'); draw('Fashion technology',204.77,547,12,regular);
       box(166.3,551.05,12,sector==='foodprocessing'); draw('Food processing',204.77,561,12,regular);
       box(166.3,565.2,12,sector==='jutebagmanufacturing'); draw('Jute Bag manufacturing',204.77,575,12,regular);
       box(166.3,579.25,12,sector==='beautician'); draw('Beautician',204.77,589,12,regular);
 
-      draw('14)',86.18,611,12,regular);
-      draw('Do you want to attend Micro Skill Entrepreneurship Development',143.06,611,12,regular);
-      draw('Programme (MSDP) to understand business?',142.94,625,12,regular);
+      const msdpY=611+addressShift; draw('14)',86.18,msdpY,12,regular);
+      draw('Do you want to attend Micro Skill Entrepreneurship Development',143.06,msdpY,12,regular);
+      draw('Programme (MSDP) to understand business?',142.94,625+addressShift,12,regular);
       const msdp=clean(d.msdpInterest).toLowerCase();
-      box(433.28,615.83,12,msdp==='yes'); draw('Yes',451.06,625,12,regular);
-      box(505.73,615.83,12,msdp==='no'); draw('No',523.44,625,12,regular);
+      box(433.28,615.83+addressShift,12,msdp==='yes'); draw('Yes',451.06,625+addressShift,12,regular);
+      box(505.73,615.83+addressShift,12,msdp==='no'); draw('No',523.44,625+addressShift,12,regular);
 
-      draw('I declare that the above information provided by me is completely correct. I will be',57.86,654,12,regular);
-      draw('responsible if any discrepancy is detected.',114.62,669,12,regular);
+      draw('I declare that the above information provided by me is completely correct. I will be',57.86,654+addressShift,12,regular);
+      draw('responsible if any discrepancy is detected.',114.62,669+addressShift,12,regular);
 
-      drawSignature(imageBuffer(d.signatureBase64));
+      const signatureShift=addressShift;
+      const originalDrawSignature=drawSignature;
+      // Keep the signature box aligned below the declaration when address wraps.
+      if(signatureShift===0){
+        originalDrawSignature(imageBuffer(d.signatureBase64));
+      }else{
+        const signature=imageBuffer(d.signatureBase64);
+        const x=408,y=686.15+signatureShift,w=146.25,h=43.5;
+        doc.lineWidth(1).rect(x,y,w,h).strokeColor('#000').stroke();
+        if(signature){try{doc.image(signature,x+4,y+4,{fit:[w-8,h-8],align:'center',valign:'center'});}catch(_){}}
+      }
       fit(d.totalSerialNumber||'EAP/2026/N',72.02,797,180,11.04,8,regular);
       fit(d.individualSerialNumber||'EAP/2026/K-S/N',438.46,797,145,11.04,8,regular);
       centered('Designed and Developed by Ajay Rao, EDII SRO Bengaluru.',300,827,8.2,regular);

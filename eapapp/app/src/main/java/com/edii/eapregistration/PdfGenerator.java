@@ -133,42 +133,56 @@ public class PdfGenerator {
             guardianLabel = "Mother's Name:";
         }
         c.drawText(guardianLabel, 143.3f, 259f, regular);
-        drawFit(c, safe(data.optString("guardianName")), 365f, 259f, 116f, value, 7f);
+        float guardianValueX = 143.3f + regular.measureText(guardianLabel) + 8f;
+        guardianValueX = Math.min(guardianValueX, 350f);
+        drawFit(c, safe(data.optString("guardianName")), guardianValueX, 259f,
+                480f - guardianValueX, value, 7f);
 
         c.drawText("5)", 89.3f, 281f, regular);
         c.drawText("Full Address:", 143.3f, 281f, regular);
-        drawFit(c, safe(fullAddress(data)), 228f, 281f, 252f, value, 6.8f);
+        int addressLines = drawWrapped(c, safe(fullAddress(data)), 228f, 281f,
+                252f, value, 6.8f, 3, 10f);
+        float addressShift = Math.max(0, addressLines - 1) * 9f;
 
-        c.drawText("6)", 89.3f, 303f, regular);
-        c.drawText("Mobile Phone:", 143.3f, 303f, regular);
-        drawFit(c, safe(data.optString("mobile")), 232f, 303f, 247f, value, 8f);
+        float y6 = 303f + addressShift;
+        float y7 = 325f + addressShift;
+        float y8 = 347f + addressShift;
+        float y9 = 369f + addressShift;
+        float y10 = 392f + addressShift;
+        float y11 = 414f + addressShift;
+        float y12 = 436f + addressShift;
+        float y13 = 463f + addressShift;
 
-        c.drawText("7)", 89.3f, 325f, regular);
-        c.drawText("Alternative Phone No.:", 143.3f, 325f, regular);
-        drawFit(c, safe(data.optString("alternateMobile")), 280f, 325f, 200f, value, 8f);
+        c.drawText("6)", 89.3f, y6, regular);
+        c.drawText("Mobile Phone:", 143.3f, y6, regular);
+        drawFit(c, safe(data.optString("mobile")), 232f, y6, 247f, value, 8f);
 
-        c.drawText("8)", 89.3f, 347f, regular);
-        c.drawText("Email ID:", 143.3f, 347f, regular);
-        drawFit(c, safe(data.optString("email")), 204f, 347f, 276f, value, 7.5f);
+        c.drawText("7)", 89.3f, y7, regular);
+        c.drawText("Alternative Phone No.:", 143.3f, y7, regular);
+        drawFit(c, safe(data.optString("alternateMobile")), 280f, y7, 200f, value, 8f);
 
-        c.drawText("9)", 89.3f, 369f, regular);
-        c.drawText("Aadhar No.:", 143.3f, 369f, regular);
-        drawFit(c, safe(data.optString("idNumber")), 219f, 369f, 260f, value, 8f);
+        c.drawText("8)", 89.3f, y8, regular);
+        c.drawText("Email ID:", 143.3f, y8, regular);
+        drawFit(c, safe(data.optString("email")), 204f, y8, 276f, value, 7.5f);
 
-        c.drawText("10)", 89.3f, 392f, regular);
-        c.drawText("Highest Educational Qualification:", 143.3f, 392f, regular);
-        drawFit(c, safe(data.optString("education")), 351f, 392f, 128f, value, 6.8f);
+        c.drawText("9)", 89.3f, y9, regular);
+        c.drawText("Aadhar No.:", 143.3f, y9, regular);
+        drawFit(c, safe(data.optString("idNumber")), 219f, y9, 260f, value, 8f);
 
-        c.drawText("11)", 89.3f, 414f, regular);
-        c.drawText("Occupation:", 143.3f, 414f, regular);
-        drawFit(c, safe(data.optString("occupation")), 219f, 414f, 260f, value, 8f);
+        c.drawText("10)", 89.3f, y10, regular);
+        c.drawText("Highest Educational Qualification:", 143.3f, y10, regular);
+        drawFit(c, safe(data.optString("education")), 351f, y10, 128f, value, 6.8f);
 
-        c.drawText("12)", 89.3f, 436f, regular);
-        c.drawText("Income (Individual):", 143.3f, 436f, regular);
-        drawFit(c, safe(data.optString("individualIncome")), 263f, 436f, 216f, value, 8f);
+        c.drawText("11)", 89.3f, y11, regular);
+        c.drawText("Occupation:", 143.3f, y11, regular);
+        drawFit(c, safe(data.optString("occupation")), 219f, y11, 260f, value, 8f);
 
-        c.drawText("13)", 89.3f, 463f, regular);
-        c.drawText("Category:", 143.3f, 463f, regular);
+        c.drawText("12)", 89.3f, y12, regular);
+        c.drawText("Income (Individual):", 143.3f, y12, regular);
+        drawFit(c, safe(data.optString("individualIncome")), 263f, y12, 216f, value, 8f);
+
+        c.drawText("13)", 89.3f, y13, regular);
+        c.drawText("Category:", 143.3f, y13, regular);
         drawCheckOption(c, 202.61f, 449.6f, "GEN", 216.05f, 463f,
                 "GEN".equalsIgnoreCase(data.optString("category")), regular, line);
         drawCheckOption(c, 247.01f, 449.6f, "EWS", 261.89f, 463f,
@@ -182,44 +196,47 @@ public class PdfGenerator {
         drawCheckOption(c, 409.30f, 449.6f, "MINORITY", 424.06f, 463f,
                 "MINORITY".equalsIgnoreCase(data.optString("category")), regular, line);
 
-        c.drawText("14)", 89.3f, 486f, regular);
-        c.drawText("Intention for taking part in the EAP:", 143.3f, 486f, regular);
-        drawBox(c, 364.5f, 477.2f, 12f, line, "Employment".equalsIgnoreCase(data.optString("intention")));
-        c.drawText("a) Employment", 382.18f, 486f, regular);
-        drawBox(c, 363.75f, 490.73f, 12f, line,
+        float intentionY = 486f + addressShift;
+        c.drawText("14)", 89.3f, intentionY, regular);
+        c.drawText("Intention for taking part in the EAP:", 143.3f, intentionY, regular);
+        drawBox(c, 364.5f, (477.2f + addressShift), 12f, line, "Employment".equalsIgnoreCase(data.optString("intention")));
+        c.drawText("a) Employment", 382.18f, intentionY, regular);
+        drawBox(c, 363.75f, (490.73f + addressShift), 12f, line,
                 "Self Employment".equalsIgnoreCase(data.optString("intention")) ||
                 "Self-employment".equalsIgnoreCase(data.optString("intention")));
-        c.drawText("b) Self-employment", 383.14f, 500f, regular);
+        c.drawText("b) Self-employment", 383.14f, (500f + addressShift), regular);
 
-        c.drawText("13)", 86.18f, 523f, regular);
-        c.drawText("In which sector would you like to start business?", 143.06f, 523f, regular);
+        float sectorY = 523f + addressShift;
+        c.drawText("13)", 86.18f, sectorY, regular);
+        c.drawText("In which sector would you like to start business?", 143.06f, sectorY, regular);
 
         String selectedSector = data.optString("sector", data.optString("sectors", ""));
-        drawBox(c, 166.3f, 537f, 12f, line, "Fashion Technology".equalsIgnoreCase(selectedSector));
-        c.drawText("Fashion technology", 204.77f, 547f, regular);
-        drawBox(c, 166.3f, 551.05f, 12f, line, "Food Processing".equalsIgnoreCase(selectedSector));
-        c.drawText("Food processing", 204.77f, 561f, regular);
-        drawBox(c, 166.3f, 565.2f, 12f, line, "Jute Bag Manufacturing".equalsIgnoreCase(selectedSector));
-        c.drawText("Jute Bag manufacturing", 204.77f, 575f, regular);
-        drawBox(c, 166.3f, 579.25f, 12f, line, "Beautician".equalsIgnoreCase(selectedSector));
-        c.drawText("Beautician", 204.77f, 589f, regular);
+        drawBox(c, 166.3f, (537f + addressShift), 12f, line, "Fashion Technology".equalsIgnoreCase(selectedSector));
+        c.drawText("Fashion technology", 204.77f, (547f + addressShift), regular);
+        drawBox(c, 166.3f, (551.05f + addressShift), 12f, line, "Food Processing".equalsIgnoreCase(selectedSector));
+        c.drawText("Food processing", 204.77f, (561f + addressShift), regular);
+        drawBox(c, 166.3f, (565.2f + addressShift), 12f, line, "Jute Bag Manufacturing".equalsIgnoreCase(selectedSector));
+        c.drawText("Jute Bag manufacturing", 204.77f, (575f + addressShift), regular);
+        drawBox(c, 166.3f, (579.25f + addressShift), 12f, line, "Beautician".equalsIgnoreCase(selectedSector));
+        c.drawText("Beautician", 204.77f, (589f + addressShift), regular);
 
-        c.drawText("14)", 86.18f, 611f, regular);
-        c.drawText("Do you want to attend Micro Skill Entrepreneurship Development", 143.06f, 611f, regular);
-        c.drawText("Programme (MSDP) to understand business?", 142.94f, 625f, regular);
+        float msdpY = 611f + addressShift;
+        c.drawText("14)", 86.18f, msdpY, regular);
+        c.drawText("Do you want to attend Micro Skill Entrepreneurship Development", 143.06f, msdpY, regular);
+        c.drawText("Programme (MSDP) to understand business?", 142.94f, (625f + addressShift), regular);
 
         boolean msdpYes = "Yes".equalsIgnoreCase(data.optString("msdpInterest"));
         boolean msdpNo = "No".equalsIgnoreCase(data.optString("msdpInterest"));
-        drawBox(c, 433.28f, 615.83f, 12f, line, msdpYes);
-        c.drawText("Yes", 451.06f, 625f, regular);
-        drawBox(c, 505.73f, 615.83f, 12f, line, msdpNo);
-        c.drawText("No", 523.44f, 625f, regular);
+        drawBox(c, 433.28f, (615.83f + addressShift), 12f, line, msdpYes);
+        c.drawText("Yes", 451.06f, (625f + addressShift), regular);
+        drawBox(c, 505.73f, (615.83f + addressShift), 12f, line, msdpNo);
+        c.drawText("No", 523.44f, (625f + addressShift), regular);
 
         c.drawText("I declare that the above information provided by me is completely correct. I will be",
-                57.86f, 654f, regular);
-        c.drawText("responsible if any discrepancy is detected.", 114.62f, 669f, regular);
+                57.86f, (654f + addressShift), regular);
+        c.drawText("responsible if any discrepancy is detected.", 114.62f, (669f + addressShift), regular);
 
-        RectF sign = new RectF(408f, 686.15f, 554.25f, 729.65f);
+        RectF sign = new RectF(408f, 686.15f + addressShift, 554.25f, 729.65f + addressShift);
         c.drawRect(sign, line);
         drawSignature(c, data.optString("signatureBase64", ""), sign, smallBold);
 
@@ -330,6 +347,81 @@ public class PdfGenerator {
 
     private static void label(Canvas c, Paint p, String text, float x, float y) {
         c.drawText(text, x, y, p);
+    }
+
+    private static int drawWrapped(
+            Canvas c,
+            String text,
+            float x,
+            float firstBaseline,
+            float maxWidth,
+            Paint base,
+            float minSize,
+            int maxLines,
+            float lineHeight) {
+
+        if (text == null || text.trim().isEmpty()) return 1;
+
+        Paint p = new Paint(base);
+        java.util.List<String> lines = wrapLines(text.trim(), p, maxWidth);
+
+        while (lines.size() > maxLines && p.getTextSize() > minSize) {
+            p.setTextSize(p.getTextSize() - 0.25f);
+            lines = wrapLines(text.trim(), p, maxWidth);
+        }
+
+        if (lines.size() > maxLines) {
+            StringBuilder last = new StringBuilder(lines.get(maxLines - 1));
+            for (int i = maxLines; i < lines.size(); i++) {
+                if (last.length() > 0) last.append(" ");
+                last.append(lines.get(i));
+            }
+            java.util.List<String> limited = new java.util.ArrayList<>(lines.subList(0, maxLines));
+            limited.set(maxLines - 1, last.toString());
+            lines = limited;
+
+            while (p.measureText(lines.get(maxLines - 1)) > maxWidth && p.getTextSize() > minSize) {
+                p.setTextSize(p.getTextSize() - 0.25f);
+            }
+        }
+
+        int count = Math.min(maxLines, Math.max(1, lines.size()));
+        for (int i = 0; i < count; i++) {
+            c.drawText(lines.get(i), x, firstBaseline + (i * lineHeight), p);
+        }
+        return count;
+    }
+
+    private static java.util.List<String> wrapLines(String text, Paint p, float maxWidth) {
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        String[] words = text.split("\\s+");
+        StringBuilder current = new StringBuilder();
+
+        for (String word : words) {
+            String candidate = current.length() == 0 ? word : current + " " + word;
+            if (p.measureText(candidate) <= maxWidth) {
+                current.setLength(0);
+                current.append(candidate);
+            } else {
+                if (current.length() > 0) {
+                    lines.add(current.toString());
+                    current.setLength(0);
+                }
+
+                String remaining = word;
+                while (p.measureText(remaining) > maxWidth && remaining.length() > 1) {
+                    int count = p.breakText(remaining, true, maxWidth, null);
+                    if (count <= 0) break;
+                    lines.add(remaining.substring(0, count));
+                    remaining = remaining.substring(count);
+                }
+                if (!remaining.isEmpty()) current.append(remaining);
+            }
+        }
+
+        if (current.length() > 0) lines.add(current.toString());
+        if (lines.isEmpty()) lines.add(text);
+        return lines;
     }
 
     private static void drawFit(Canvas c, String text, float x, float y, float maxWidth, Paint base, float minSize) {

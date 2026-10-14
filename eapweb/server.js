@@ -18,7 +18,7 @@ app.get('/downloads/HAL_EAP_Registration_iOS.mobileconfig',(req,res)=>{
 app.use(express.json({limit:'35mb'}));
 app.use(express.static(path.join(__dirname,'public'), {
   setHeaders(res, filePath) {
-    if (filePath.endsWith('sw.js')) res.setHeader('Cache-Control','no-cache');
+    if (/(sw\.js|app\.js|styles\.css|index\.html)$/.test(filePath)) res.setHeader('Cache-Control','no-cache, no-store, must-revalidate');
   }
 }));
 
@@ -79,10 +79,27 @@ app.post('/api/submit', async (req,res) => {
       ...result,
       totalSerialNumber: result.totalSerialNumber || totalSerial,
       individualSerialNumber: result.individualSerialNumber || locationSerial,
-      pdfFileName: result.pdfFileName || payload.pdfFileName
+      pdfFileName: result.pdfFileName || payload.pdfFileName,
+      applicationPdfBase64: pdf.toString('base64'),
+      applicationPdfMimeType: 'application/pdf'
     });
   } catch (e) {
     res.status(503).json({success:false,message:e.message || 'Submission failed'});
+  }
+});
+
+app.post('/api/pdf', async (req,res) => {
+  try {
+    const payload = {...(req.body || {})};
+    if (!payload.name) return res.status(400).json({success:false,message:'Applicant name is required to generate the PDF.'});
+    const pdf = await buildPdf(payload);
+    const fileName = makePdfFileName(payload);
+    res.setHeader('Content-Type','application/pdf');
+    res.setHeader('Content-Disposition','inline; filename="'+fileName.replace(/"/g,'')+'"');
+    res.setHeader('Cache-Control','no-store');
+    res.send(pdf);
+  } catch (e) {
+    res.status(500).json({success:false,message:e.message || 'Unable to generate application PDF.'});
   }
 });
 

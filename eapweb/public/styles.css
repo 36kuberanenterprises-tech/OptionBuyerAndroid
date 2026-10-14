@@ -45,3 +45,18 @@ label,legend{color:#18271e!important;font-weight:750}
 .top .titles b{color:#0b4f2d!important;font-weight:900}
 .top .titles span{color:#1b2a20!important;font-weight:800}
 footer b,.developer-credit b,.footer-credit b{color:#0b4f2d!important}
+
+/* v2.8.1 filled application preview and download */
+#resultDialog{max-width:900px;width:min(94vw,900px)}
+.resultdialog{padding:24px}
+.pdfresult{margin:16px 0 18px;padding:14px;border:1px solid #bfd8c6;border-radius:16px;background:#f7fbf8;text-align:left}
+.pdfresulthead{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.pdfresulthead b{color:var(--gd);font-size:17px}
+.pdfresulthead span{color:var(--mu);font-size:12px;font-weight:650}
+.pdfpreview{display:block;width:100%;height:56vh;min-height:460px;border:1px solid #cbd8cf;border-radius:12px;background:#fff}
+.pdfactions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:10px}
+.appactions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.appaction{appearance:none;border:0;border-radius:10px;padding:9px 12px;background:var(--g);color:#fff;text-decoration:none;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+.appaction.secondary,.appaction.central{background:#fff;color:var(--gd);border:1px solid #9ecaa2}
+.appaction:hover{filter:brightness(.96)}
+@media(max-width:680px){#resultDialog{width:96vw}.resultdialog{padding:18px}.pdfpreview{height:45vh;min-height:340px}.pdfactions{grid-template-columns:1fr}.appactions{display:grid;grid-template-columns:1fr}.appaction{width:100%;text-align:center}}

@@ -59,10 +59,12 @@ jobs:
           rm -rf /tmp/eap-web-publish
           git worktree add /tmp/eap-web-publish origin/eap-web-app
           cp eapapp/app/build/outputs/apk/debug/app-debug.apk /tmp/eap-web-publish/eapweb/public/downloads/HAL_EAP_Registration_Android_latest.apk
+          VERSION_NAME=$(awk -F"'" '/versionName/ {print $2; exit}' eapapp/app/build.gradle)
+          printf '{"version":"%s"}\n' "$VERSION_NAME" > /tmp/eap-web-publish/eapweb/public/downloads/android-version.json
           cd /tmp/eap-web-publish
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add eapweb/public/downloads/HAL_EAP_Registration_Android_latest.apk
+          git add eapweb/public/downloads/HAL_EAP_Registration_Android_latest.apk eapweb/public/downloads/android-version.json
           if git diff --cached --quiet; then
             echo "Latest APK is already current."
           else

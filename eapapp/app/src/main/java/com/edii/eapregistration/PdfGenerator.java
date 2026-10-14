@@ -238,6 +238,25 @@ public class PdfGenerator {
         return out.toByteArray();
     }
 
+    public static String saveBase64Copy(
+            Context context,
+            String pdfBase64,
+            String fileName) throws Exception {
+
+        if (pdfBase64 == null || pdfBase64.trim().isEmpty()) {
+            throw new Exception("PDF data is empty.");
+        }
+
+        byte[] bytes = Base64.decode(pdfBase64, Base64.DEFAULT);
+        String safeName = fileName == null ? "EAP_Application.pdf" : fileName.trim();
+        if (safeName.isEmpty()) safeName = "EAP_Application.pdf";
+        if (!safeName.toLowerCase(Locale.ENGLISH).endsWith(".pdf")) {
+            safeName = safeName + ".pdf";
+        }
+
+        return saveToDevice(context, bytes, safeName);
+    }
+
     private static Paint paint(float size, boolean bold) {
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setTextSize(size);

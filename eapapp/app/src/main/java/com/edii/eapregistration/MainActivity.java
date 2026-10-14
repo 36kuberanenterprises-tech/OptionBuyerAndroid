@@ -19,10 +19,12 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.pdf.PdfRenderer;
 import android.net.Uri;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.os.ParcelFileDescriptor;
 import android.provider.MediaStore;
 import android.text.Editable;
 import android.text.InputFilter;
@@ -55,6 +57,8 @@ import android.widget.Toast;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -811,7 +815,8 @@ public class MainActivity extends Activity {
             showSuccessDialog(
                     payload.optString("name", "Applicant"),
                     totalSerial,
-                    locationSerial
+                    locationSerial,
+                    payload
             );
         } catch (Exception ex) {
             saveOfflinePending(payload, requestId,
@@ -907,7 +912,7 @@ public class MainActivity extends Activity {
         return sb.toString();
     }
 
-    private void showSuccessDialog(String applicantName, String totalSerial, String locationSerial) {
+    private void showSuccessDialog(String applicantName, String totalSerial, String locationSerial, JSONObject applicationData) {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
         box.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -994,10 +999,24 @@ public class MainActivity extends Activity {
         serialLp.setMargins(0, dp(18), 0, dp(16));
         box.addView(serialCard, serialLp);
 
-        Button next = makeButton("Next Applicant", true);
-        box.addView(next, new LinearLayout.LayoutParams(
+        Button viewApplication = makeButton("View Filled Application", true);
+        box.addView(viewApplication, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        Button downloadPdf = makeButton("Save PDF to Downloads", false);
+        LinearLayout.LayoutParams pdfLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        pdfLp.setMargins(0, dp(8), 0, 0);
+        box.addView(downloadPdf, pdfLp);
+
+        Button next = makeButton("Next Applicant", false);
+        LinearLayout.LayoutParams nextLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        nextLp.setMargins(0, dp(8), 0, 0);
+        box.addView(next, nextLp);
 
         Button applications = makeButton("View Applications", false);
         LinearLayout.LayoutParams appLp = new LinearLayout.LayoutParams(
@@ -1010,6 +1029,9 @@ public class MainActivity extends Activity {
                 .setView(box)
                 .setCancelable(false)
                 .create();
+
+        viewApplication.setOnClickListener(v -> showPdfPreview(applicationData));
+        downloadPdf.setOnClickListener(v -> savePdfCopy(applicationData));
 
         next.setOnClickListener(v -> {
             dialog.dismiss();
@@ -1328,6 +1350,23 @@ public class MainActivity extends Activity {
                     card.addView(error);
                 }
 
+                if (!data.optString("pdfBase64", "").trim().isEmpty()) {
+                    LinearLayout pdfActions = buttonRow();
+                    Button viewPdf = makeButton("View Application", false);
+                    Button savePdf = makeButton("Save PDF", false);
+                    pdfActions.addView(viewPdf, weightedButtonParams(false));
+                    pdfActions.addView(savePdf, weightedButtonParams(false));
+
+                    LinearLayout.LayoutParams actionsLp = new LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT);
+                    actionsLp.setMargins(0, dp(10), 0, 0);
+                    card.addView(pdfActions, actionsLp);
+
+                    viewPdf.setOnClickListener(v -> showPdfPreview(data));
+                    savePdf.setOnClickListener(v -> savePdfCopy(data));
+                }
+
                 target.addView(card, cardParams(0, dp(6)));
                 shown++;
             } catch (Exception ignored) {}
@@ -1341,6 +1380,130 @@ public class MainActivity extends Activity {
             empty.setGravity(Gravity.CENTER);
             empty.setPadding(0, dp(40), 0, dp(40));
             target.addView(empty);
+        }
+    }
+
+    private void showPdfPreview(JSONObject data) {
+        try {
+            String pdfBase64 = data.optString("pdfBase64", "");
+            if (pdfBase64.trim().isEmpty()) {
+                Toast.makeText(this,
+                        "Filled application PDF is not available yet. Please sync the application first.",
+                        Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            byte[] bytes = Base64.decode(pdfBase64, Base64.DEFAULT);
+            File previewFile = new File(getCacheDir(),
+                    "eap_preview_" + System.currentTimeMillis() + ".pdf");
+            try (FileOutputStream fos = new FileOutputStream(previewFile)) {
+                fos.write(bytes);
+            }
+
+            Bitmap bitmap;
+            try (ParcelFileDescriptor descriptor =
+                         ParcelFileDescriptor.open(previewFile, ParcelFileDescriptor.MODE_READ_ONLY);
+                 PdfRenderer renderer = new PdfRenderer(descriptor);
+                 PdfRenderer.Page page = renderer.openPage(0)) {
+
+                int screenWidth = getResources().getDisplayMetrics().widthPixels;
+                int width = Math.min(1500, Math.max(900, screenWidth * 2));
+                int height = Math.max(1,
+                        Math.round(width * (page.getHeight() / (float) page.getWidth())));
+
+                bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+                bitmap.eraseColor(Color.WHITE);
+                page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
+            }
+
+            LinearLayout container = new LinearLayout(this);
+            container.setOrientation(LinearLayout.VERTICAL);
+            container.setPadding(dp(10), dp(10), dp(10), dp(10));
+            container.setBackgroundColor(Color.rgb(235, 238, 235));
+
+            TextView title = new TextView(this);
+            title.setText("Filled Beneficiary Application");
+            title.setTextColor(GREEN_DARK);
+            title.setTextSize(17);
+            title.setTypeface(Typeface.DEFAULT_BOLD);
+            title.setPadding(dp(4), dp(2), dp(4), dp(8));
+            container.addView(title);
+
+            ScrollView previewScroll = new ScrollView(this);
+            ImageView preview = new ImageView(this);
+            preview.setImageBitmap(bitmap);
+            preview.setAdjustViewBounds(true);
+            preview.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            preview.setBackgroundColor(Color.WHITE);
+            previewScroll.addView(preview, new ScrollView.LayoutParams(
+                    ScrollView.LayoutParams.MATCH_PARENT,
+                    ScrollView.LayoutParams.WRAP_CONTENT));
+
+            LinearLayout.LayoutParams previewLp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f);
+            container.addView(previewScroll, previewLp);
+
+            LinearLayout actions = buttonRow();
+            Button save = makeButton("Save PDF to Downloads", true);
+            Button close = makeButton("Close", false);
+            actions.addView(save, weightedButtonParams(true));
+            actions.addView(close, weightedButtonParams(false));
+            container.addView(actions);
+
+            AlertDialog dialog = new AlertDialog.Builder(this)
+                    .setView(container)
+                    .create();
+
+            save.setOnClickListener(v -> savePdfCopy(data));
+            close.setOnClickListener(v -> dialog.dismiss());
+
+            dialog.setOnShowListener(v -> {
+                if (dialog.getWindow() != null) {
+                    int width = (int) (getResources().getDisplayMetrics().widthPixels * 0.96f);
+                    int height = (int) (getResources().getDisplayMetrics().heightPixels * 0.90f);
+                    dialog.getWindow().setLayout(width, height);
+                }
+            });
+            dialog.show();
+
+        } catch (Exception ex) {
+            Toast.makeText(this,
+                    "Unable to open the filled application PDF.",
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void savePdfCopy(JSONObject data) {
+        try {
+            String pdfBase64 = data.optString("pdfBase64", "");
+            if (pdfBase64.trim().isEmpty()) {
+                Toast.makeText(this,
+                        "Filled application PDF is not available yet.",
+                        Toast.LENGTH_LONG).show();
+                return;
+            }
+
+            String fileName = data.optString("pdfFileName", "");
+            if (fileName.trim().isEmpty()) {
+                String safeName = data.optString("name", "Applicant")
+                        .trim().replaceAll("[^A-Za-z0-9_ ]", "")
+                        .replaceAll("\\s+", "_");
+                String serial = data.optString("individualSerialNumber", "EAP_Application")
+                        .replace("/", "-")
+                        .replaceAll("[^A-Za-z0-9_.-]", "_");
+                fileName = safeName + "_" + serial + ".pdf";
+            }
+
+            String savedAt = PdfGenerator.saveBase64Copy(
+                    this, pdfBase64, fileName);
+            Toast.makeText(this,
+                    "PDF saved to " + savedAt,
+                    Toast.LENGTH_LONG).show();
+
+        } catch (Exception ex) {
+            Toast.makeText(this,
+                    "Unable to save the PDF to Downloads.",
+                    Toast.LENGTH_LONG).show();
         }
     }
 

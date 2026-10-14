@@ -172,7 +172,7 @@ public class SplashActivity extends Activity {
         root.addView(footer);
 
         TextView developer = new TextView(this);
-        developer.setText("Designed and Developed by Ajay Rao\nEDII SRO Bengaluru");
+        developer.setText("Designed and Developed by Ajay Rao, EDII SRO Bengaluru.");
         developer.setTextColor(GREEN_DARK);
         developer.setTextSize(10);
         developer.setTypeface(Typeface.DEFAULT_BOLD);

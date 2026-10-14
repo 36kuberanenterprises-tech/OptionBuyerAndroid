@@ -1,5 +1,8 @@
 name: Build EAP APK
 
+permissions:
+  contents: write
+
 on:
   push:
     branches:
@@ -47,3 +50,22 @@ jobs:
           name: EAP_Registration_Test_APK
           path: eapapp/artifact/EAP_Registration_Test.apk
           if-no-files-found: error
+
+
+      - name: Publish latest APK to web download page
+        working-directory: ${{ github.workspace }}
+        run: |
+          git fetch origin eap-web-app
+          rm -rf /tmp/eap-web-publish
+          git worktree add /tmp/eap-web-publish origin/eap-web-app
+          cp eapapp/app/build/outputs/apk/debug/app-debug.apk /tmp/eap-web-publish/eapweb/public/downloads/HAL_EAP_Registration_Android_latest.apk
+          cd /tmp/eap-web-publish
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add eapweb/public/downloads/HAL_EAP_Registration_Android_latest.apk
+          if git diff --cached --quiet; then
+            echo "Latest APK is already current."
+          else
+            git commit -m "Update latest HAL EAP Android APK"
+            git push origin HEAD:eap-web-app
+          fi

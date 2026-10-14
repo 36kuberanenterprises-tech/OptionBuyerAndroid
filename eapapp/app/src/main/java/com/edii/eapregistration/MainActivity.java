@@ -1400,8 +1400,7 @@ public class MainActivity extends Activity {
                 "\nCentral serial control: Enabled" +
                 "\nPDF storage: Central Drive + local Downloads" +
                 "\nFinal submission requires central connection" +
-                "\n\nDesigned and Developed by Ajay Rao" +
-                "\nEDII SRO Bengaluru");
+                "\n\nDesigned and Developed by Ajay Rao, EDII SRO Bengaluru.");
         info.setTextColor(TEXT);
         info.setTextSize(14);
         info.setLineSpacing(0, 1.25f);

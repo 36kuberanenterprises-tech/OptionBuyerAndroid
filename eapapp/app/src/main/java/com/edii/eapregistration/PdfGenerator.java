@@ -228,6 +228,9 @@ public class PdfGenerator {
         drawFit(c, safe(data.optString("individualSerialNumber", "EAP/2026/K-S/N")),
                 438.46f, 797f, 145f, small, 8f);
 
+        Paint footer = paint(8.2f, false);
+        drawCentered(c, "Designed and Developed by Ajay Rao, EDII SRO Bengaluru.", footer, 300f, 827f);
+
         document.finishPage(page);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         document.writeTo(out);

@@ -123,6 +123,7 @@ public class MainActivity extends Activity {
 
     private Spinner projectLocationSpinner;
     private Spinner categorySpinner;
+    private Spinner guardianRelationSpinner;
     private RadioGroup genderGroup;
     private RadioGroup intentionGroup;
     private RadioGroup sectorGroup;
@@ -385,6 +386,7 @@ public class MainActivity extends Activity {
         ageField.setClickable(false);
         ageField.setTextColor(TEXT);
         ageField.setBackground(rounded(Color.rgb(242, 245, 242), dp(10), 1, BORDER));
+        guardianRelationSpinner = createSpinner(new String[]{"Select", "Father", "Husband", "Mother"});
         guardianNameField = createInput("");
 
         addPair(personal,
@@ -393,7 +395,9 @@ public class MainActivity extends Activity {
         addPair(personal,
                 fieldBlock("Date of Birth *", dobField),
                 fieldBlock("Age (Auto)", ageField));
-        personal.addView(fieldBlock("Father / Husband / Mother Name *", guardianNameField));
+        addPair(personal,
+                fieldBlock("Relation *", guardianRelationSpinner),
+                fieldBlock("Father / Husband / Mother Name *", guardianNameField));
 
         LinearLayout location = createSectionCard(homeContainer, "Location Details");
         villageField = createInput("");
@@ -610,6 +614,7 @@ public class MainActivity extends Activity {
                 selectedRadio(genderGroup).isEmpty() ||
                 blank(dobField) ||
                 blank(ageField) ||
+                "Select".equals(selectedSpinner(guardianRelationSpinner)) ||
                 blank(guardianNameField) ||
                 blank(villageField) ||
                 blank(panchayatField) ||
@@ -729,6 +734,7 @@ public class MainActivity extends Activity {
         payload.put("gender", selectedRadio(genderGroup));
         payload.put("dob", value(dobField));
         payload.put("ageOnEapDate", value(ageField));
+        payload.put("guardianRelation", selectedSpinner(guardianRelationSpinner));
         payload.put("guardianName", value(guardianNameField));
 
         payload.put("village", value(villageField));
@@ -1152,6 +1158,7 @@ public class MainActivity extends Activity {
         dobValue = null;
         dobField.setText("");
         ageField.setText("");
+        guardianRelationSpinner.setSelection(0);
         guardianNameField.setText("");
 
         villageField.setText("");

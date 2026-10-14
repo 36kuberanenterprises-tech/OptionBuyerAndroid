@@ -123,7 +123,16 @@ public class PdfGenerator {
         drawFit(c, safe(data.optString("dob")), 229f, 237f, 250f, value, 8f);
 
         c.drawText("4)", 89.3f, 259f, regular);
-        c.drawText("Father's/Husband's/Mother's Name:", 143.3f, 259f, regular);
+        String guardianRelation = safe(data.optString("guardianRelation"));
+        String guardianLabel = "Father's/Husband's/Mother's Name:";
+        if ("Father".equalsIgnoreCase(guardianRelation)) {
+            guardianLabel = "Father's Name:";
+        } else if ("Husband".equalsIgnoreCase(guardianRelation)) {
+            guardianLabel = "Husband's Name:";
+        } else if ("Mother".equalsIgnoreCase(guardianRelation)) {
+            guardianLabel = "Mother's Name:";
+        }
+        c.drawText(guardianLabel, 143.3f, 259f, regular);
         drawFit(c, safe(data.optString("guardianName")), 365f, 259f, 116f, value, 7f);
 
         c.drawText("5)", 89.3f, 281f, regular);

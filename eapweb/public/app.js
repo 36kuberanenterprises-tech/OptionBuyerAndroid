@@ -12,8 +12,10 @@ async function init(){
   $('eapDate').value=localISODate(new Date());
   $('projectLocation').addEventListener('change',()=>{ $('city').value=placeOf($('projectLocation').value); refreshStatus(); });
   $('dob').addEventListener('change',updateAge); $('eapDate').addEventListener('change',updateAge);
-  $('photo').addEventListener('change',e=>loadImage(e,'photo'));
-  $('signature').addEventListener('change',e=>loadImage(e,'signature'));
+  bindImageInput('photoCamera','photo');
+  bindImageInput('photoUpload','photo');
+  bindImageInput('signatureCamera','signature');
+  bindImageInput('signatureUpload','signature');
   $('registrationForm').addEventListener('submit',submit);
   $('syncBtn').addEventListener('click',syncQueue); $('syncTop').addEventListener('click',syncQueue);
   $('nextBtn').addEventListener('click',()=>{ $('resultDialog').close(); clearNext(); });
@@ -29,8 +31,116 @@ async function init(){
   setTimeout(()=>$('splash').classList.add('hide'),1500);
 }
 function updateAge(){const a=$('dob').value,b=$('eapDate').value;if(!a||!b){$('age').value='';return}const d=new Date(a+'T00:00:00'),e=new Date(b+'T00:00:00');if(d>e){$('age').value='';return}let y=e.getFullYear()-d.getFullYear();const m=e.getMonth()-d.getMonth();if(m<0||(m===0&&e.getDate()<d.getDate()))y--;$('age').value=Math.max(0,y)}
-async function loadImage(ev,type){const f=ev.target.files&&ev.target.files[0];if(!f)return;try{const b=await compress(f,type==='signature'?1100:1400,type==='signature'?.82:.78);if(type==='photo'){photoBase64=b;$('photoPreview').src='data:image/jpeg;base64,'+b}else{signatureBase64=b;$('signaturePreview').src='data:image/jpeg;base64,'+b}}catch(_){status('Unable to read selected image.',true)}}
-function compress(file,max,q){return new Promise((ok,bad)=>{const r=new FileReader();r.onerror=bad;r.onload=()=>{const im=new Image();im.onerror=bad;im.onload=()=>{let w=im.width,h=im.height,s=Math.min(1,max/Math.max(w,h));w=Math.round(w*s);h=Math.round(h*s);const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(im,0,0,w,h);ok(c.toDataURL('image/jpeg',q).split(',')[1])};im.src=r.result};r.readAsDataURL(file)})}
+function bindImageInput(id,type){
+  const el=$(id);
+  if(!el)return;
+  el.addEventListener('click',()=>{ el.value=''; });
+  el.addEventListener('change',e=>loadImage(e,type));
+}
+
+async function loadImage(ev,type){
+  const input=ev.target;
+  const file=input.files&&input.files[0];
+  if(!file)return;
+
+  const statusEl=$(type==='photo'?'photoStatus':'signatureStatus');
+  if(statusEl){
+    statusEl.textContent='Processing image…';
+    statusEl.className='uploadstatus processing';
+  }
+
+  try{
+    if(!file.type.startsWith('image/')){
+      throw new Error('Please select an image file.');
+    }
+
+    // Keep browser memory and Apps Script payload under control.
+    const maxBytes=12*1024*1024;
+    if(file.size>maxBytes){
+      throw new Error('Image is too large. Please choose a photo below 12 MB.');
+    }
+
+    const base64=await compressImage(
+      file,
+      type==='signature'?1200:1600,
+      type==='signature'?0.82:0.80
+    );
+
+    const preview=$(type==='photo'?'photoPreview':'signaturePreview');
+    if(type==='photo') photoBase64=base64;
+    else signatureBase64=base64;
+
+    if(preview){
+      preview.src='data:image/jpeg;base64,'+base64;
+      preview.style.display='block';
+    }
+
+    if(statusEl){
+      statusEl.textContent=type==='photo'?'Photo ready ✓':'Signature ready ✓';
+      statusEl.className='uploadstatus ready';
+    }
+  }catch(err){
+    if(type==='photo') photoBase64='';
+    else signatureBase64='';
+
+    if(statusEl){
+      statusEl.textContent=err&&err.message?err.message:'Unable to read selected image.';
+      statusEl.className='uploadstatus error';
+    }
+    status(err&&err.message?err.message:'Unable to read selected image.',true);
+  }
+}
+
+async function compressImage(file,maxDimension,quality){
+  let bitmap=null;
+  let objectUrl='';
+
+  try{
+    // createImageBitmap works well on modern Chrome/Edge/Android.
+    if('createImageBitmap' in window){
+      try{ bitmap=await createImageBitmap(file,{imageOrientation:'from-image'}); }catch(_){}
+    }
+
+    if(bitmap){
+      const scale=Math.min(1,maxDimension/Math.max(bitmap.width,bitmap.height));
+      const w=Math.max(1,Math.round(bitmap.width*scale));
+      const h=Math.max(1,Math.round(bitmap.height*scale));
+      const canvas=document.createElement('canvas');
+      canvas.width=w; canvas.height=h;
+      const ctx=canvas.getContext('2d',{alpha:false});
+      ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h);
+      ctx.drawImage(bitmap,0,0,w,h);
+      if(bitmap.close)bitmap.close();
+      const data=canvas.toDataURL('image/jpeg',quality);
+      if(!data||!data.includes(','))throw new Error('Could not process image.');
+      return data.split(',')[1];
+    }
+
+    // Fallback for Safari/iPhone and older Android browsers.
+    objectUrl=URL.createObjectURL(file);
+    const img=await new Promise((resolve,reject)=>{
+      const im=new Image();
+      im.onload=()=>resolve(im);
+      im.onerror=()=>reject(new Error('This image format could not be opened. Please use JPG/PNG or take a new photo.'));
+      im.src=objectUrl;
+    });
+
+    const scale=Math.min(1,maxDimension/Math.max(img.naturalWidth||img.width,img.naturalHeight||img.height));
+    const w=Math.max(1,Math.round((img.naturalWidth||img.width)*scale));
+    const h=Math.max(1,Math.round((img.naturalHeight||img.height)*scale));
+    const canvas=document.createElement('canvas');
+    canvas.width=w; canvas.height=h;
+    const ctx=canvas.getContext('2d',{alpha:false});
+    ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h);
+    ctx.drawImage(img,0,0,w,h);
+    const data=canvas.toDataURL('image/jpeg',quality);
+    if(!data||!data.includes(','))throw new Error('Could not process image.');
+    return data.split(',')[1];
+  }finally{
+    if(objectUrl)URL.revokeObjectURL(objectUrl);
+  }
+}
+
 function validate(){const req=[['eapDate','EAP Date'],['projectLocation','HAL Project Location'],['name','Name'],['dob','Date of Birth'],['guardianRelation','Relation'],['guardianName','Father / Husband / Mother Name'],['address','Address'],['panchayat','Panchayat'],['pinCode','PIN Code'],['mobile','Mobile Number'],['education','Educational Qualification'],['occupation','Occupation'],['category','Category']];for(const [i,l] of req)if(!$(i).value.trim())return l+' is required.';for(const g of ['gender','intention','sector','msdp'])if(!checked(g))return 'Please select '+g+'.';if(!/^\d{6}$/.test($('pinCode').value))return'PIN Code must contain 6 digits.';if(!/^[6-9]\d{9}$/.test($('mobile').value))return'Enter a valid 10 digit mobile number.';if($('alternateMobile').value&&!/^[6-9]\d{9}$/.test($('alternateMobile').value))return'Enter a valid alternate mobile number.';if($('aadhaar').value&&!/^\d{12}$/.test($('aadhaar').value))return'Aadhaar must contain exactly 12 digits.';if(!photoBase64)return'Candidate photo is required.';if(!signatureBase64)return'Applicant signature photo is required.';if(!$('declaration').checked)return'Please accept the declaration.';return''}
 function payload(){const p=$('projectLocation').value,city=placeOf(p),id=crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random();return{clientRequestId:id,projectLocation:p,locationCode:CODES[p]||'NA',place:city,eapDate:displayDate($('eapDate').value),name:$('name').value.trim(),gender:checked('gender'),dob:displayDate($('dob').value),ageOnEapDate:$('age').value,guardianRelation:$('guardianRelation').value,guardianName:$('guardianName').value.trim(),village:$('address').value.trim(),panchayat:$('panchayat').value.trim(),block:'',city,pinCode:$('pinCode').value.trim(),state:'Karnataka',fullAddress:[$('address').value.trim(),$('panchayat').value.trim(),projectAddress(p),'Karnataka','PIN '+$('pinCode').value.trim()].filter(Boolean).join(', '),mobile:$('mobile').value.trim(),alternateMobile:$('alternateMobile').value.trim(),email:$('email').value.trim(),idType:'Aadhaar',idNumber:$('aadhaar').value.trim(),education:$('education').value.trim(),occupation:$('occupation').value.trim(),individualIncome:$('income').value.trim(),category:$('category').value,intention:checked('intention'),sector:checked('sector'),sectors:checked('sector'),msdpInterest:checked('msdp'),photoBase64,signatureType:'Photo',signatureBase64,declarationAccepted:true}}
 async function submit(e){
